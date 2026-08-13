@@ -70,14 +70,6 @@ Performance also varies by borough even though borough is not a model input. Tes
 
 ## Decision
 
-The baseline demonstrates meaningful ranking skill beyond simple historical rates and supports continuing the project. It does not justify public deployment yet.
+The baseline demonstrates meaningful ranking skill beyond simple historical rates but does not justify operational deployment. Follow-up diagnostics confirmed strong dependence on agency and complaint taxonomy, measured modest overall score drift, and tested global and agency-aware calibration without finding sufficient validation improvement. The raw candidate score was retained.
 
-The next stage should:
-
-1. Explain the candidate's coefficients and category contributions.
-2. Measure feature and target drift across time.
-3. Add within-agency evaluation and calibration.
-4. Decide whether separate agency models or post-model calibration are warranted.
-5. Produce a model card and documented failure cases.
-
-Machine-readable metrics are available in [`reports/baseline_metrics.json`](../reports/baseline_metrics.json).
+The complete release assessment, intended-use boundary, limitations, and monitoring requirements are in the [model card](../MODEL_CARD.md). Machine-readable evidence is available in [`reports/baseline_metrics.json`](../reports/baseline_metrics.json) and [`reports/diagnostics.json`](../reports/diagnostics.json).

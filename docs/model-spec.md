@@ -2,7 +2,7 @@
 
 ## Objective
 
-Estimate, at service-request creation time, the probability that an NYC 311 request will not close within 168 hours. The output is a calibrated risk score intended to help an operations reviewer find requests that may need earlier attention.
+Estimate, at service-request creation time, the probability that an NYC 311 request will not close within 168 hours. Calibration is evaluated on a later validation period, and scaling is applied only when it meets a predeclared improvement rule. The resulting risk score is intended to help an operations reviewer find requests that may need earlier attention.
 
 The score must not automatically deny, close, or deprioritize a request. It is not a measure of resident importance, agency quality, or employee performance.
 

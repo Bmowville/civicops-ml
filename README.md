@@ -1,12 +1,12 @@
 # CivicOps ML
 
-CivicOps ML is a reproducible machine-learning case study that estimates whether an NYC 311 service request will remain unresolved beyond seven calendar days. Predictions are made from information available when the request is created, with explicit controls for target leakage, temporal drift, calibration, and subgroup performance.
+CivicOps ML is a reproducible machine-learning system that estimates whether an NYC 311 service request will remain unresolved beyond seven calendar days. Predictions are made from information available when the request is created, with explicit controls for target leakage, temporal drift, calibration, and subgroup performance.
 
 ## Project status
 
-The data contract, source audit, and chronological baseline evaluation are complete. The source audit covers 9,106,406 requests created from January 2024 through June 2026. Baseline modeling uses a reproducible 641,232-row, time-stratified extract with separate training, validation, and 2026 test periods.
+The data contract, source audit, chronological evaluation, explainability analysis, drift checks, and calibration experiment are complete. The source audit covers 9,106,406 requests created from January 2024 through June 2026. Modeling uses a reproducible 641,232-row, time-stratified extract with separate training, validation, and 2026 test periods.
 
-The provisional candidate is a regularized logistic model without ZIP code, borough, or community-board inputs. On the held-out sample it reached 0.749 average precision. Its highest-risk 10% contained 39.7% of delayed requests at 77.9% precision. These are retrospective sample results, not production-performance claims.
+The provisional candidate is a regularized logistic model without ZIP code, borough, or community-board inputs. On the held-out sample it reached 0.749 average precision. Its highest-risk 10% contained 39.7% of delayed requests at 77.9% precision. Validation did not support adding global or agency-aware probability scaling, so the raw score was retained. These are retrospective sample results, not production-performance claims.
 
 ## Data source
 
@@ -23,7 +23,7 @@ The provisional candidate is a regularized logistic model without ZIP code, boro
 - **Evaluation:** chronological holdout, precision-recall, calibration, recall at a fixed review capacity, and performance by agency and borough
 - **Intended use:** decision support for workload review, not automated denial, closure, or deprioritization of public services
 
-The detailed [model specification](docs/model-spec.md), [data audit](docs/data-audit.md), and [baseline results](docs/baseline-results.md) document the scope, evidence, and known limitations.
+The [model card](MODEL_CARD.md), [model specification](docs/model-spec.md), [data audit](docs/data-audit.md), and [baseline results](docs/baseline-results.md) document the scope, evidence, and known limitations.
 
 ## Validation
 
@@ -48,6 +48,7 @@ Rebuild the ignored modeling extract and baseline report:
 ```bash
 python -m civicops_ml.dataset
 python -m civicops_ml.modeling
+python -m civicops_ml.diagnostics
 ```
 
-The extraction manifest records the sampling seed, source counts, and SHA-256 digest used for each report.
+The extraction manifest records the sampling seed, source counts, and SHA-256 digest used for each report. The diagnostic report also records the exact candidate-model and modeling-extract digests.

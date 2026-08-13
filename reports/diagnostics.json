@@ -1,0 +1,1297 @@
+{
+  "artifacts": {
+    "model": {
+      "path": "models/candidate.joblib",
+      "sha256": "07ad76180a387736d6198777bdf9cb534345bc3d7df11bd3657f17df2e1e9fa3"
+    },
+    "modeling_extract": {
+      "path": "data/modeling.csv.gz",
+      "rows": 641232,
+      "sha256": "a3bdee515a2fe05df7b7868e3399d4987c38d088d1420713b79ba4691670c094"
+    }
+  },
+  "calibration": {
+    "protocol": {
+      "evaluation": "2026-01-01 through 2026-06-30 test period",
+      "final_refit": "full 2025-07-01 through 2025-12-31 validation period",
+      "fit": "2025-07-01 through 2025-09-30",
+      "selection": "2025-10-01 through 2025-12-31"
+    },
+    "selection": {
+      "comparisons": {
+        "agency_aware": {
+          "absolute_group_gap_improvement_vs_identity": -0.004461,
+          "brier_improvement_vs_identity": -0.000475,
+          "qualifies": false,
+          "relative_group_gap_improvement_vs_identity": -0.428777
+        },
+        "global_platt": {
+          "absolute_group_gap_improvement_vs_identity": -7.1e-05,
+          "brier_improvement_vs_identity": 5e-06,
+          "qualifies": false,
+          "relative_group_gap_improvement_vs_identity": -0.006824
+        }
+      },
+      "rule": "retain identity unless a calibrator improves chronological selection Brier by at least 0.0005; agency-aware must also improve weighted absolute agency gap by at least 5%, while global calibration may not worsen that gap by more than 5%",
+      "selected": "identity"
+    },
+    "selection_metrics": {
+      "agency_aware": {
+        "brier": 0.062925,
+        "log_loss": 0.191732,
+        "weighted_absolute_agency_gap": 0.014865
+      },
+      "global_platt": {
+        "brier": 0.062445,
+        "log_loss": 0.190478,
+        "weighted_absolute_agency_gap": 0.010475
+      },
+      "identity": {
+        "brier": 0.06245,
+        "log_loss": 0.190337,
+        "weighted_absolute_agency_gap": 0.010404
+      }
+    },
+    "test": {
+      "calibrated": {
+        "average_precision": 0.7491,
+        "brier": 0.083116,
+        "ece_10": 0.029105,
+        "log_loss": 0.26545,
+        "mean_probability": 0.17338,
+        "positives": 26679,
+        "prevalence": 0.196049,
+        "roc_auc": 0.928167,
+        "rows": 136083,
+        "top_10_percent": {
+          "precision": 0.779043,
+          "recall": 0.397391,
+          "review_rate": 0.100005,
+          "reviewed": 13609
+        }
+      },
+      "raw": {
+        "average_precision": 0.7491,
+        "brier": 0.083116,
+        "ece_10": 0.029105,
+        "log_loss": 0.26545,
+        "mean_probability": 0.17338,
+        "positives": 26679,
+        "prevalence": 0.196049,
+        "roc_auc": 0.928167,
+        "rows": 136083,
+        "top_10_percent": {
+          "precision": 0.779043,
+          "recall": 0.397391,
+          "review_rate": 0.100005,
+          "reviewed": 13609
+        }
+      }
+    },
+    "test_agency_calibrated": [
+      {
+        "average_precision": 4e-05,
+        "brier": 1.8e-05,
+        "calibration_gap": 0.000219,
+        "group": "NYPD",
+        "mean_probability": 0.000237,
+        "prevalence": 1.8e-05,
+        "rows": 56179
+      },
+      {
+        "average_precision": 0.723458,
+        "brier": 0.144171,
+        "calibration_gap": -0.062615,
+        "group": "HPD",
+        "mean_probability": 0.316017,
+        "prevalence": 0.378632,
+        "rows": 33415
+      },
+      {
+        "average_precision": 0.336329,
+        "brier": 0.07628,
+        "calibration_gap": 0.003443,
+        "group": "DSNY",
+        "mean_probability": 0.098822,
+        "prevalence": 0.095379,
+        "rows": 11816
+      },
+      {
+        "average_precision": 0.58182,
+        "brier": 0.186527,
+        "calibration_gap": -0.109348,
+        "group": "DOT",
+        "mean_probability": 0.203086,
+        "prevalence": 0.312434,
+        "rows": 11292
+      },
+      {
+        "average_precision": 0.305169,
+        "brier": 0.123644,
+        "calibration_gap": -0.006278,
+        "group": "DEP",
+        "mean_probability": 0.152237,
+        "prevalence": 0.158514,
+        "rows": 7728
+      },
+      {
+        "average_precision": 0.817074,
+        "brier": 0.182002,
+        "calibration_gap": 0.0446,
+        "group": "DPR",
+        "mean_probability": 0.557065,
+        "prevalence": 0.512465,
+        "rows": 4613
+      },
+      {
+        "average_precision": 0.712562,
+        "brier": 0.220946,
+        "calibration_gap": 0.099214,
+        "group": "DOB",
+        "mean_probability": 0.573666,
+        "prevalence": 0.474453,
+        "rows": 3973
+      },
+      {
+        "average_precision": 0.916586,
+        "brier": 0.16174,
+        "calibration_gap": -0.108966,
+        "group": "DOHMH",
+        "mean_probability": 0.459256,
+        "prevalence": 0.568222,
+        "rows": 2807
+      },
+      {
+        "average_precision": 0.424744,
+        "brier": 0.08552,
+        "calibration_gap": 0.004601,
+        "group": "DHS",
+        "mean_probability": 0.137012,
+        "prevalence": 0.132411,
+        "rows": 1518
+      },
+      {
+        "average_precision": 0.991855,
+        "brier": 0.01781,
+        "calibration_gap": 0.007405,
+        "group": "TLC",
+        "mean_probability": 0.818253,
+        "prevalence": 0.810848,
+        "rows": 1438
+      },
+      {
+        "average_precision": 0.692157,
+        "brier": 0.24001,
+        "calibration_gap": -0.08281,
+        "group": "DCWP",
+        "mean_probability": 0.466265,
+        "prevalence": 0.549075,
+        "rows": 703
+      },
+      {
+        "average_precision": null,
+        "brier": 0.000505,
+        "calibration_gap": -0.022357,
+        "group": "EDC",
+        "mean_probability": 0.977643,
+        "prevalence": 1.0,
+        "rows": 386
+      },
+      {
+        "average_precision": 0.987708,
+        "brier": 0.051988,
+        "calibration_gap": -0.21043,
+        "group": "OOS",
+        "mean_probability": 0.782324,
+        "prevalence": 0.992754,
+        "rows": 138
+      }
+    ],
+    "test_agency_raw": [
+      {
+        "average_precision": 4e-05,
+        "brier": 1.8e-05,
+        "calibration_gap": 0.000219,
+        "group": "NYPD",
+        "mean_probability": 0.000237,
+        "prevalence": 1.8e-05,
+        "rows": 56179
+      },
+      {
+        "average_precision": 0.723458,
+        "brier": 0.144171,
+        "calibration_gap": -0.062615,
+        "group": "HPD",
+        "mean_probability": 0.316017,
+        "prevalence": 0.378632,
+        "rows": 33415
+      },
+      {
+        "average_precision": 0.336329,
+        "brier": 0.07628,
+        "calibration_gap": 0.003443,
+        "group": "DSNY",
+        "mean_probability": 0.098822,
+        "prevalence": 0.095379,
+        "rows": 11816
+      },
+      {
+        "average_precision": 0.58182,
+        "brier": 0.186527,
+        "calibration_gap": -0.109348,
+        "group": "DOT",
+        "mean_probability": 0.203086,
+        "prevalence": 0.312434,
+        "rows": 11292
+      },
+      {
+        "average_precision": 0.305169,
+        "brier": 0.123644,
+        "calibration_gap": -0.006278,
+        "group": "DEP",
+        "mean_probability": 0.152237,
+        "prevalence": 0.158514,
+        "rows": 7728
+      },
+      {
+        "average_precision": 0.817074,
+        "brier": 0.182002,
+        "calibration_gap": 0.0446,
+        "group": "DPR",
+        "mean_probability": 0.557065,
+        "prevalence": 0.512465,
+        "rows": 4613
+      },
+      {
+        "average_precision": 0.712562,
+        "brier": 0.220946,
+        "calibration_gap": 0.099214,
+        "group": "DOB",
+        "mean_probability": 0.573666,
+        "prevalence": 0.474453,
+        "rows": 3973
+      },
+      {
+        "average_precision": 0.916586,
+        "brier": 0.16174,
+        "calibration_gap": -0.108966,
+        "group": "DOHMH",
+        "mean_probability": 0.459256,
+        "prevalence": 0.568222,
+        "rows": 2807
+      },
+      {
+        "average_precision": 0.424744,
+        "brier": 0.08552,
+        "calibration_gap": 0.004601,
+        "group": "DHS",
+        "mean_probability": 0.137012,
+        "prevalence": 0.132411,
+        "rows": 1518
+      },
+      {
+        "average_precision": 0.991855,
+        "brier": 0.01781,
+        "calibration_gap": 0.007405,
+        "group": "TLC",
+        "mean_probability": 0.818253,
+        "prevalence": 0.810848,
+        "rows": 1438
+      },
+      {
+        "average_precision": 0.692157,
+        "brier": 0.24001,
+        "calibration_gap": -0.08281,
+        "group": "DCWP",
+        "mean_probability": 0.466265,
+        "prevalence": 0.549075,
+        "rows": 703
+      },
+      {
+        "average_precision": null,
+        "brier": 0.000505,
+        "calibration_gap": -0.022357,
+        "group": "EDC",
+        "mean_probability": 0.977643,
+        "prevalence": 1.0,
+        "rows": 386
+      },
+      {
+        "average_precision": 0.987708,
+        "brier": 0.051988,
+        "calibration_gap": -0.21043,
+        "group": "OOS",
+        "mean_probability": 0.782324,
+        "prevalence": 0.992754,
+        "rows": 138
+      }
+    ],
+    "test_borough_calibrated": [
+      {
+        "average_precision": 0.751918,
+        "brier": 0.081898,
+        "calibration_gap": -0.02663,
+        "group": "BROOKLYN",
+        "mean_probability": 0.169966,
+        "prevalence": 0.196596,
+        "rows": 42534
+      },
+      {
+        "average_precision": 0.730932,
+        "brier": 0.071249,
+        "calibration_gap": -0.015813,
+        "group": "QUEENS",
+        "mean_probability": 0.140074,
+        "prevalence": 0.155887,
+        "rows": 34185
+      },
+      {
+        "average_precision": 0.699147,
+        "brier": 0.094864,
+        "calibration_gap": -0.033559,
+        "group": "BRONX",
+        "mean_probability": 0.183947,
+        "prevalence": 0.217506,
+        "rows": 27213
+      },
+      {
+        "average_precision": 0.808398,
+        "brier": 0.084667,
+        "calibration_gap": -0.019055,
+        "group": "MANHATTAN",
+        "mean_probability": 0.20959,
+        "prevalence": 0.228645,
+        "rows": 26364
+      },
+      {
+        "average_precision": 0.608225,
+        "brier": 0.098019,
+        "calibration_gap": 0.003397,
+        "group": "STATEN ISLAND",
+        "mean_probability": 0.175792,
+        "prevalence": 0.172396,
+        "rows": 5673
+      },
+      {
+        "average_precision": 0.86753,
+        "brier": 0.19094,
+        "calibration_gap": -0.134816,
+        "group": "Unspecified",
+        "mean_probability": 0.417815,
+        "prevalence": 0.552632,
+        "rows": 114
+      }
+    ]
+  },
+  "candidate": "logistic_no_geography",
+  "drift": {
+    "test": {
+      "features": {
+        "agency": {
+          "current_share": 0.412829,
+          "jensen_shannon_divergence": 0.004443,
+          "largest_absolute_share_shift": 0.040251,
+          "largest_shift_category": "NYPD",
+          "reference_share": 0.45308,
+          "unseen_category_rate": 0.001301
+        },
+        "complaint_type": {
+          "current_share": 0.112167,
+          "jensen_shannon_divergence": 0.019498,
+          "largest_absolute_share_shift": 0.030088,
+          "largest_shift_category": "HEAT/HOT WATER",
+          "reference_share": 0.082079,
+          "unseen_category_rate": 0.001631
+        },
+        "created_day_of_week": {
+          "current_share": 0.119295,
+          "jensen_shannon_divergence": 0.003409,
+          "largest_absolute_share_shift": 0.028849,
+          "largest_shift_category": "0",
+          "reference_share": 0.148144,
+          "unseen_category_rate": 0.0
+        },
+        "created_hour": {
+          "current_share": 0.066959,
+          "jensen_shannon_divergence": 0.003072,
+          "largest_absolute_share_shift": 0.011244,
+          "largest_shift_category": "11",
+          "reference_share": 0.055715,
+          "unseen_category_rate": 0.0
+        },
+        "created_is_weekend": {
+          "current_share": 0.733729,
+          "jensen_shannon_divergence": 0.0,
+          "largest_absolute_share_shift": 0.000479,
+          "largest_shift_category": "0",
+          "reference_share": 0.734208,
+          "unseen_category_rate": 0.0
+        },
+        "created_month": {
+          "current_share": 0.173012,
+          "jensen_shannon_divergence": 0.193642,
+          "largest_absolute_share_shift": 0.080452,
+          "largest_shift_category": "04",
+          "reference_share": 0.09256,
+          "unseen_category_rate": 0.0
+        },
+        "descriptor": {
+          "current_share": 0.082553,
+          "jensen_shannon_divergence": 0.031323,
+          "largest_absolute_share_shift": 0.043206,
+          "largest_shift_category": "Loud Music/Party",
+          "reference_share": 0.125758,
+          "unseen_category_rate": 0.001653
+        },
+        "location_type": {
+          "current_share": 0.245549,
+          "jensen_shannon_divergence": 0.006313,
+          "largest_absolute_share_shift": 0.028897,
+          "largest_shift_category": "RESIDENTIAL BUILDING",
+          "reference_share": 0.216652,
+          "unseen_category_rate": 0.000184
+        },
+        "open_data_channel_type": {
+          "current_share": 0.47826,
+          "jensen_shannon_divergence": 0.006159,
+          "largest_absolute_share_shift": 0.069699,
+          "largest_shift_category": "ONLINE",
+          "reference_share": 0.408561,
+          "unseen_category_rate": 9.6e-05
+        }
+      },
+      "score_psi": 0.036623
+    },
+    "validation": {
+      "features": {
+        "agency": {
+          "current_share": 0.467712,
+          "jensen_shannon_divergence": 0.000885,
+          "largest_absolute_share_shift": 0.014632,
+          "largest_shift_category": "NYPD",
+          "reference_share": 0.45308,
+          "unseen_category_rate": 0.000636
+        },
+        "complaint_type": {
+          "current_share": 0.123479,
+          "jensen_shannon_divergence": 0.005801,
+          "largest_absolute_share_shift": 0.011714,
+          "largest_shift_category": "Noise - Residential",
+          "reference_share": 0.111765,
+          "unseen_category_rate": 0.000737
+        },
+        "created_day_of_week": {
+          "current_share": 0.114359,
+          "jensen_shannon_divergence": 0.002959,
+          "largest_absolute_share_shift": 0.034125,
+          "largest_shift_category": "3",
+          "reference_share": 0.148484,
+          "unseen_category_rate": 0.0
+        },
+        "created_hour": {
+          "current_share": 0.051079,
+          "jensen_shannon_divergence": 0.001602,
+          "largest_absolute_share_shift": 0.008053,
+          "largest_shift_category": "14",
+          "reference_share": 0.059132,
+          "unseen_category_rate": 0.0
+        },
+        "created_is_weekend": {
+          "current_share": 0.739739,
+          "jensen_shannon_divergence": 2.8e-05,
+          "largest_absolute_share_shift": 0.005531,
+          "largest_shift_category": "0",
+          "reference_share": 0.734208,
+          "unseen_category_rate": 0.0
+        },
+        "created_month": {
+          "current_share": 0.194412,
+          "jensen_shannon_divergence": 0.465073,
+          "largest_absolute_share_shift": 0.143847,
+          "largest_shift_category": "10",
+          "reference_share": 0.050565,
+          "unseen_category_rate": 0.0
+        },
+        "descriptor": {
+          "current_share": 0.062783,
+          "jensen_shannon_divergence": 0.013063,
+          "largest_absolute_share_shift": 0.009064,
+          "largest_shift_category": "ENTIRE BUILDING",
+          "reference_share": 0.053719,
+          "unseen_category_rate": 0.00111
+        },
+        "location_type": {
+          "current_share": 0.135307,
+          "jensen_shannon_divergence": 0.001715,
+          "largest_absolute_share_shift": 0.01358,
+          "largest_shift_category": "Residential Building/House",
+          "reference_share": 0.121727,
+          "unseen_category_rate": 0.000124
+        },
+        "open_data_channel_type": {
+          "current_share": 0.258522,
+          "jensen_shannon_divergence": 0.002053,
+          "largest_absolute_share_shift": 0.040822,
+          "largest_shift_category": "PHONE",
+          "reference_share": 0.299344,
+          "unseen_category_rate": 1.6e-05
+        }
+      },
+      "score_psi": 0.038408
+    }
+  },
+  "explainability": {
+    "coefficients": {
+      "encoded_features": 707,
+      "intercept": -0.448438,
+      "minimum_supported_rows": 1000,
+      "most_negative": [
+        {
+          "category": "NYPD",
+          "coefficient": -7.064393,
+          "feature": "agency",
+          "odds_multiplier": 0.000855,
+          "training_rows": 170498,
+          "training_share": 0.45308
+        },
+        {
+          "category": "Indoor Air Quality",
+          "coefficient": -4.002357,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.018273,
+          "training_rows": 864,
+          "training_share": 0.002296
+        },
+        {
+          "category": "Lost Property",
+          "coefficient": -3.965898,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.018951,
+          "training_rows": 667,
+          "training_share": 0.001772
+        },
+        {
+          "category": "Fire Hydrant Emergency (FHE)",
+          "coefficient": -3.429089,
+          "feature": "descriptor",
+          "odds_multiplier": 0.032416,
+          "training_rows": 799,
+          "training_share": 0.002123
+        },
+        {
+          "category": "Violation of Park Rules",
+          "coefficient": -3.4245,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.032566,
+          "training_rows": 442,
+          "training_share": 0.001175
+        },
+        {
+          "category": "Vendor Enforcement",
+          "coefficient": -3.361642,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.034678,
+          "training_rows": 2887,
+          "training_share": 0.007672
+        },
+        {
+          "category": "Sewer Backup (Use Comments) (SA)",
+          "coefficient": -3.29011,
+          "feature": "descriptor",
+          "odds_multiplier": 0.03725,
+          "training_rows": 867,
+          "training_share": 0.002304
+        },
+        {
+          "category": "Unsanitary Animal Pvt Property",
+          "coefficient": -3.142923,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.043156,
+          "training_rows": 253,
+          "training_share": 0.000672
+        },
+        {
+          "category": "Dog Off Leash",
+          "coefficient": -2.961671,
+          "feature": "descriptor",
+          "odds_multiplier": 0.051732,
+          "training_rows": 321,
+          "training_share": 0.000853
+        },
+        {
+          "category": "HEAT/HOT WATER",
+          "coefficient": -2.701917,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.067077,
+          "training_rows": 30887,
+          "training_share": 0.082079
+        },
+        {
+          "category": "Residential Disposal Complaint",
+          "coefficient": -2.656954,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.070162,
+          "training_rows": 1550,
+          "training_share": 0.004119
+        },
+        {
+          "category": "Injured Wildlife",
+          "coefficient": -2.374867,
+          "feature": "descriptor",
+          "odds_multiplier": 0.093027,
+          "training_rows": 107,
+          "training_share": 0.000284
+        },
+        {
+          "category": "Egress - Doors Locked/Blocked/Improper/No Secondary Means",
+          "coefficient": -2.357809,
+          "feature": "descriptor",
+          "odds_multiplier": 0.094627,
+          "training_rows": 164,
+          "training_share": 0.000436
+        },
+        {
+          "category": "Building Shaking/Vibrating/Structural Stability",
+          "coefficient": -2.348189,
+          "feature": "descriptor",
+          "odds_multiplier": 0.095542,
+          "training_rows": 364,
+          "training_share": 0.000967
+        },
+        {
+          "category": "Cone",
+          "coefficient": -2.295995,
+          "feature": "descriptor",
+          "odds_multiplier": 0.100661,
+          "training_rows": 754,
+          "training_share": 0.002004
+        },
+        {
+          "category": "Rodent",
+          "coefficient": -2.208043,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.109916,
+          "training_rows": 4101,
+          "training_share": 0.010898
+        },
+        {
+          "category": "Site Conditions Endangering Workers",
+          "coefficient": -2.205412,
+          "feature": "descriptor",
+          "odds_multiplier": 0.110205,
+          "training_rows": 107,
+          "training_share": 0.000284
+        },
+        {
+          "category": "Noise: Alarms (NR3)",
+          "coefficient": -2.185311,
+          "feature": "descriptor",
+          "odds_multiplier": 0.112443,
+          "training_rows": 625,
+          "training_share": 0.001661
+        },
+        {
+          "category": "Plate Condition - Noisy",
+          "coefficient": -2.182157,
+          "feature": "descriptor",
+          "odds_multiplier": 0.112798,
+          "training_rows": 341,
+          "training_share": 0.000906
+        },
+        {
+          "category": "Working Contrary To Stop Work Order",
+          "coefficient": -2.17809,
+          "feature": "descriptor",
+          "odds_multiplier": 0.113258,
+          "training_rows": 216,
+          "training_share": 0.000574
+        }
+      ],
+      "most_negative_supported": [
+        {
+          "category": "NYPD",
+          "coefficient": -7.064393,
+          "feature": "agency",
+          "odds_multiplier": 0.000855,
+          "training_rows": 170498,
+          "training_share": 0.45308
+        },
+        {
+          "category": "Vendor Enforcement",
+          "coefficient": -3.361642,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.034678,
+          "training_rows": 2887,
+          "training_share": 0.007672
+        },
+        {
+          "category": "HEAT/HOT WATER",
+          "coefficient": -2.701917,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.067077,
+          "training_rows": 30887,
+          "training_share": 0.082079
+        },
+        {
+          "category": "Residential Disposal Complaint",
+          "coefficient": -2.656954,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.070162,
+          "training_rows": 1550,
+          "training_share": 0.004119
+        },
+        {
+          "category": "Rodent",
+          "coefficient": -2.208043,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.109916,
+          "training_rows": 4101,
+          "training_share": 0.010898
+        },
+        {
+          "category": "Dirty Condition",
+          "coefficient": -1.98714,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.137087,
+          "training_rows": 6207,
+          "training_share": 0.016494
+        },
+        {
+          "category": "Food Vendor",
+          "coefficient": -1.941746,
+          "feature": "descriptor",
+          "odds_multiplier": 0.143453,
+          "training_rows": 2023,
+          "training_share": 0.005376
+        },
+        {
+          "category": "ENTIRE BUILDING",
+          "coefficient": -1.695852,
+          "feature": "descriptor",
+          "odds_multiplier": 0.183443,
+          "training_rows": 20215,
+          "training_share": 0.053719
+        },
+        {
+          "category": "Derelict Vehicles",
+          "coefficient": -1.59851,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.202198,
+          "training_rows": 5247,
+          "training_share": 0.013943
+        },
+        {
+          "category": "Derelict Vehicles",
+          "coefficient": -1.59851,
+          "feature": "descriptor",
+          "odds_multiplier": 0.202198,
+          "training_rows": 5247,
+          "training_share": 0.013943
+        },
+        {
+          "category": "DEP",
+          "coefficient": -1.291621,
+          "feature": "agency",
+          "odds_multiplier": 0.274825,
+          "training_rows": 20144,
+          "training_share": 0.05353
+        },
+        {
+          "category": "Pothole",
+          "coefficient": -1.263301,
+          "feature": "descriptor",
+          "odds_multiplier": 0.282719,
+          "training_rows": 4682,
+          "training_share": 0.012442
+        },
+        {
+          "category": "Traffic Signal Condition",
+          "coefficient": -1.175877,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.308548,
+          "training_rows": 4903,
+          "training_share": 0.013029
+        },
+        {
+          "category": "Loud Music/Party",
+          "coefficient": -1.154871,
+          "feature": "descriptor",
+          "odds_multiplier": 0.315098,
+          "training_rows": 47324,
+          "training_share": 0.125758
+        },
+        {
+          "category": "Cave-in",
+          "coefficient": -1.01498,
+          "feature": "descriptor",
+          "odds_multiplier": 0.36241,
+          "training_rows": 1146,
+          "training_share": 0.003045
+        },
+        {
+          "category": "APARTMENT ONLY",
+          "coefficient": -1.006065,
+          "feature": "descriptor",
+          "odds_multiplier": 0.365655,
+          "training_rows": 10672,
+          "training_share": 0.02836
+        },
+        {
+          "category": "Homeless Person Assistance",
+          "coefficient": -0.962082,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.382097,
+          "training_rows": 3956,
+          "training_share": 0.010513
+        },
+        {
+          "category": "Posted Parking Sign Violation",
+          "coefficient": -0.924107,
+          "feature": "descriptor",
+          "odds_multiplier": 0.396885,
+          "training_rows": 13113,
+          "training_share": 0.034846
+        },
+        {
+          "category": "Restaurant/Bar/Deli/Bakery",
+          "coefficient": -0.890511,
+          "feature": "location_type",
+          "odds_multiplier": 0.410446,
+          "training_rows": 1522,
+          "training_share": 0.004045
+        },
+        {
+          "category": "Noise - Street/Sidewalk",
+          "coefficient": -0.883323,
+          "feature": "complaint_type",
+          "odds_multiplier": 0.413407,
+          "training_rows": 18112,
+          "training_share": 0.048131
+        }
+      ],
+      "most_positive": [
+        {
+          "category": "Food Establishment",
+          "coefficient": 4.713021,
+          "feature": "complaint_type",
+          "odds_multiplier": 111.388122,
+          "training_rows": 1390,
+          "training_share": 0.003694
+        },
+        {
+          "category": "Wear & Tear",
+          "coefficient": 3.813163,
+          "feature": "descriptor",
+          "odds_multiplier": 45.293477,
+          "training_rows": 55,
+          "training_share": 0.000146
+        },
+        {
+          "category": "Syringes",
+          "coefficient": 2.975079,
+          "feature": "descriptor",
+          "odds_multiplier": 19.591161,
+          "training_rows": 75,
+          "training_share": 0.000199
+        },
+        {
+          "category": "Line/Marking - After Repaving",
+          "coefficient": 2.73003,
+          "feature": "descriptor",
+          "odds_multiplier": 15.33335,
+          "training_rows": 79,
+          "training_share": 0.00021
+        },
+        {
+          "category": "Recreation Center",
+          "coefficient": 2.702093,
+          "feature": "descriptor",
+          "odds_multiplier": 14.910903,
+          "training_rows": 68,
+          "training_share": 0.000181
+        },
+        {
+          "category": "Wall/Retaining Wall - Bulging/Cracked",
+          "coefficient": 2.679315,
+          "feature": "descriptor",
+          "odds_multiplier": 14.575107,
+          "training_rows": 49,
+          "training_share": 0.00013
+        },
+        {
+          "category": "RAIN GARDEN DEBRIS (GIRGD)",
+          "coefficient": 2.601195,
+          "feature": "descriptor",
+          "odds_multiplier": 13.479838,
+          "training_rows": 46,
+          "training_share": 0.000122
+        },
+        {
+          "category": "Building - Vacant, Open And Unguarded",
+          "coefficient": 2.568238,
+          "feature": "descriptor",
+          "odds_multiplier": 13.042819,
+          "training_rows": 105,
+          "training_share": 0.000279
+        },
+        {
+          "category": "Lot Condition",
+          "coefficient": 2.562204,
+          "feature": "complaint_type",
+          "odds_multiplier": 12.964353,
+          "training_rows": 190,
+          "training_share": 0.000505
+        },
+        {
+          "category": "Construction Lead Dust",
+          "coefficient": 2.544481,
+          "feature": "complaint_type",
+          "odds_multiplier": 12.736617,
+          "training_rows": 127,
+          "training_share": 0.000337
+        },
+        {
+          "category": "Mobile Food Vendor",
+          "coefficient": 2.538399,
+          "feature": "complaint_type",
+          "odds_multiplier": 12.659386,
+          "training_rows": 672,
+          "training_share": 0.001786
+        },
+        {
+          "category": "Debris - Excessive",
+          "coefficient": 2.385243,
+          "feature": "descriptor",
+          "odds_multiplier": 10.861701,
+          "training_rows": 106,
+          "training_share": 0.000282
+        },
+        {
+          "category": "Line/Marking - Faded",
+          "coefficient": 2.376736,
+          "feature": "descriptor",
+          "odds_multiplier": 10.76969,
+          "training_rows": 40,
+          "training_share": 0.000106
+        },
+        {
+          "category": "Driver Complaint - Non Passenger",
+          "coefficient": 2.351699,
+          "feature": "descriptor",
+          "odds_multiplier": 10.503403,
+          "training_rows": 2182,
+          "training_share": 0.005798
+        },
+        {
+          "category": "For One Address",
+          "coefficient": 2.331534,
+          "feature": "descriptor",
+          "odds_multiplier": 10.293723,
+          "training_rows": 1531,
+          "training_share": 0.004068
+        },
+        {
+          "category": "New Tree Request",
+          "coefficient": 2.331534,
+          "feature": "complaint_type",
+          "odds_multiplier": 10.293723,
+          "training_rows": 1531,
+          "training_share": 0.004068
+        },
+        {
+          "category": "TLC",
+          "coefficient": 2.322816,
+          "feature": "agency",
+          "odds_multiplier": 10.204373,
+          "training_rows": 3886,
+          "training_share": 0.010327
+        },
+        {
+          "category": "Unknown",
+          "coefficient": 2.282709,
+          "feature": "descriptor",
+          "odds_multiplier": 9.803203,
+          "training_rows": 3397,
+          "training_share": 0.009027
+        },
+        {
+          "category": "Fence - None/Inadequate",
+          "coefficient": 2.088439,
+          "feature": "descriptor",
+          "odds_multiplier": 8.072306,
+          "training_rows": 248,
+          "training_share": 0.000659
+        },
+        {
+          "category": "Illegal Hotel Rooms In Residential Building",
+          "coefficient": 2.060333,
+          "feature": "descriptor",
+          "odds_multiplier": 7.848583,
+          "training_rows": 237,
+          "training_share": 0.00063
+        }
+      ],
+      "most_positive_supported": [
+        {
+          "category": "Food Establishment",
+          "coefficient": 4.713021,
+          "feature": "complaint_type",
+          "odds_multiplier": 111.388122,
+          "training_rows": 1390,
+          "training_share": 0.003694
+        },
+        {
+          "category": "Driver Complaint - Non Passenger",
+          "coefficient": 2.351699,
+          "feature": "descriptor",
+          "odds_multiplier": 10.503403,
+          "training_rows": 2182,
+          "training_share": 0.005798
+        },
+        {
+          "category": "For One Address",
+          "coefficient": 2.331534,
+          "feature": "descriptor",
+          "odds_multiplier": 10.293723,
+          "training_rows": 1531,
+          "training_share": 0.004068
+        },
+        {
+          "category": "New Tree Request",
+          "coefficient": 2.331534,
+          "feature": "complaint_type",
+          "odds_multiplier": 10.293723,
+          "training_rows": 1531,
+          "training_share": 0.004068
+        },
+        {
+          "category": "TLC",
+          "coefficient": 2.322816,
+          "feature": "agency",
+          "odds_multiplier": 10.204373,
+          "training_rows": 3886,
+          "training_share": 0.010327
+        },
+        {
+          "category": "Unknown",
+          "coefficient": 2.282709,
+          "feature": "descriptor",
+          "odds_multiplier": 9.803203,
+          "training_rows": 3397,
+          "training_share": 0.009027
+        },
+        {
+          "category": "Building/Use",
+          "coefficient": 1.733531,
+          "feature": "complaint_type",
+          "odds_multiplier": 5.660606,
+          "training_rows": 2164,
+          "training_share": 0.005751
+        },
+        {
+          "category": "Trees and Sidewalks Program",
+          "coefficient": 1.486883,
+          "feature": "descriptor",
+          "odds_multiplier": 4.423287,
+          "training_rows": 1055,
+          "training_share": 0.002804
+        },
+        {
+          "category": "Sewer",
+          "coefficient": 1.474485,
+          "feature": "complaint_type",
+          "odds_multiplier": 4.368784,
+          "training_rows": 2713,
+          "training_share": 0.00721
+        },
+        {
+          "category": "Above Address",
+          "coefficient": 1.459823,
+          "feature": "location_type",
+          "odds_multiplier": 4.305198,
+          "training_rows": 2643,
+          "training_share": 0.007023
+        },
+        {
+          "category": "Noise - Helicopter",
+          "coefficient": 1.459823,
+          "feature": "complaint_type",
+          "odds_multiplier": 4.305198,
+          "training_rows": 2643,
+          "training_share": 0.007023
+        },
+        {
+          "category": "EDC",
+          "coefficient": 1.459823,
+          "feature": "agency",
+          "odds_multiplier": 4.305198,
+          "training_rows": 2643,
+          "training_share": 0.007023
+        },
+        {
+          "category": "Double Parked Blocking Vehicle",
+          "coefficient": 1.407091,
+          "feature": "descriptor",
+          "odds_multiplier": 4.084059,
+          "training_rows": 1661,
+          "training_share": 0.004414
+        },
+        {
+          "category": "Elevator",
+          "coefficient": 1.213206,
+          "feature": "complaint_type",
+          "odds_multiplier": 3.364254,
+          "training_rows": 2326,
+          "training_share": 0.006181
+        },
+        {
+          "category": "DOHMH",
+          "coefficient": 1.15866,
+          "feature": "agency",
+          "odds_multiplier": 3.185663,
+          "training_rows": 9513,
+          "training_share": 0.02528
+        },
+        {
+          "category": "Subway",
+          "coefficient": 1.130133,
+          "feature": "location_type",
+          "odds_multiplier": 3.096069,
+          "training_rows": 1521,
+          "training_share": 0.004042
+        },
+        {
+          "category": "Root/Sewer/Sidewalk Condition",
+          "coefficient": 1.125476,
+          "feature": "complaint_type",
+          "odds_multiplier": 3.081682,
+          "training_rows": 1063,
+          "training_share": 0.002825
+        },
+        {
+          "category": "DOOR",
+          "coefficient": 1.064995,
+          "feature": "descriptor",
+          "odds_multiplier": 2.900825,
+          "training_rows": 2557,
+          "training_share": 0.006795
+        },
+        {
+          "category": "Graffiti",
+          "coefficient": 1.060511,
+          "feature": "complaint_type",
+          "odds_multiplier": 2.887846,
+          "training_rows": 2063,
+          "training_share": 0.005482
+        },
+        {
+          "category": "Paper License Plates",
+          "coefficient": 1.057354,
+          "feature": "descriptor",
+          "odds_multiplier": 2.878745,
+          "training_rows": 1019,
+          "training_share": 0.002708
+        }
+      ],
+      "warning": "Coefficients are conditional associations, not causal effects. Use the supported lists for interpretation; extreme coefficients for rare categories may be unstable."
+    },
+    "validation_permutation_importance": [
+      {
+        "average_precision_drop": 0.359523,
+        "brier_increase": 0.07499,
+        "feature": "agency"
+      },
+      {
+        "average_precision_drop": 0.148507,
+        "brier_increase": 0.028509,
+        "feature": "complaint_type"
+      },
+      {
+        "average_precision_drop": 0.093206,
+        "brier_increase": 0.019979,
+        "feature": "descriptor"
+      },
+      {
+        "average_precision_drop": 0.007856,
+        "brier_increase": 0.002452,
+        "feature": "location_type"
+      },
+      {
+        "average_precision_drop": 0.001552,
+        "brier_increase": -1.9e-05,
+        "feature": "open_data_channel_type"
+      },
+      {
+        "average_precision_drop": 0.000903,
+        "brier_increase": 0.000422,
+        "feature": "created_month"
+      },
+      {
+        "average_precision_drop": 0.000142,
+        "brier_increase": 3.1e-05,
+        "feature": "created_day_of_week"
+      },
+      {
+        "average_precision_drop": 6e-05,
+        "brier_increase": -4e-06,
+        "feature": "created_is_weekend"
+      },
+      {
+        "average_precision_drop": -0.000403,
+        "brier_increase": -1e-06,
+        "feature": "created_hour"
+      }
+    ]
+  },
+  "generated_at": "2026-08-13T11:19:01-04:00",
+  "monthly_test_metrics": [
+    {
+      "average_precision": 0.741295,
+      "calibration_gap": -0.029863,
+      "mean_probability": 0.16272,
+      "month": "2026-01",
+      "prevalence": 0.192583,
+      "rows": 27422
+    },
+    {
+      "average_precision": 0.73143,
+      "calibration_gap": -0.020187,
+      "mean_probability": 0.160536,
+      "month": "2026-02",
+      "prevalence": 0.180722,
+      "rows": 18996
+    },
+    {
+      "average_precision": 0.722843,
+      "calibration_gap": -0.032597,
+      "mean_probability": 0.164481,
+      "month": "2026-03",
+      "prevalence": 0.197077,
+      "rows": 24498
+    },
+    {
+      "average_precision": 0.781494,
+      "calibration_gap": -0.02951,
+      "mean_probability": 0.212293,
+      "month": "2026-04",
+      "prevalence": 0.241803,
+      "rows": 23544
+    },
+    {
+      "average_precision": 0.76467,
+      "calibration_gap": -0.016524,
+      "mean_probability": 0.160668,
+      "month": "2026-05",
+      "prevalence": 0.177192,
+      "rows": 21536
+    },
+    {
+      "average_precision": 0.739802,
+      "calibration_gap": -0.001664,
+      "mean_probability": 0.17895,
+      "month": "2026-06",
+      "prevalence": 0.180614,
+      "rows": 20087
+    }
+  ]
+}
