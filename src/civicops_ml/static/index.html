@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="CivicOps ML human-review console">
+    <title>CivicOps ML · Review console</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="CivicOps ML home">
+        <span class="brand-mark">CO</span>
+        <span>CivicOps ML</span>
+      </a>
+      <div class="status"><span class="status-dot"></span>Local review environment</div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Operations decision support</p>
+        <h1>Surface requests that may need earlier attention.</h1>
+        <p class="lede">Estimate seven-day resolution risk from creation-time fields. Every result requires a documented human review.</p>
+        <div class="boundary">The score cannot close, deny, deprioritize, or reroute a service request.</div>
+      </section>
+
+      <div class="workspace">
+        <section class="panel input-panel" aria-labelledby="request-heading">
+          <div class="panel-heading">
+            <div>
+              <p class="step">01 · Request</p>
+              <h2 id="request-heading">Creation-time details</h2>
+            </div>
+            <span class="required-note">All fields required</span>
+          </div>
+
+          <form id="prediction-form">
+            <label>
+              Agency
+              <input name="agency" maxlength="80" placeholder="e.g. DOT" required autocomplete="off">
+            </label>
+            <label>
+              Complaint type
+              <input name="complaint_type" maxlength="160" placeholder="e.g. Street Condition" required autocomplete="off">
+            </label>
+            <label>
+              Descriptor
+              <input name="descriptor" maxlength="200" placeholder="e.g. Pothole" required autocomplete="off">
+            </label>
+            <label>
+              Location type
+              <input name="location_type" maxlength="160" placeholder="e.g. Street" required autocomplete="off">
+            </label>
+            <label>
+              Submission channel
+              <select name="open_data_channel_type" required>
+                <option value="">Select a channel</option>
+                <option>ONLINE</option>
+                <option>PHONE</option>
+                <option>MOBILE</option>
+                <option>UNKNOWN</option>
+                <option>OTHER</option>
+              </select>
+            </label>
+            <label>
+              Created at
+              <input name="created_at" type="datetime-local" required>
+            </label>
+            <button class="primary" type="submit">Generate review score</button>
+            <p id="form-error" class="message error" role="alert" hidden></p>
+          </form>
+        </section>
+
+        <section class="panel result-panel" aria-labelledby="result-heading">
+          <div class="panel-heading">
+            <div>
+              <p class="step">02 · Model result</p>
+              <h2 id="result-heading">Review signal</h2>
+            </div>
+          </div>
+
+          <div id="result-empty" class="empty-state">
+            <div class="empty-ring">—</div>
+            <p>Submit creation-time details to generate a review signal.</p>
+          </div>
+
+          <div id="result" hidden>
+            <div class="score-row">
+              <div>
+                <span class="score-label">Estimated risk</span>
+                <strong id="score">0%</strong>
+              </div>
+              <span id="review-tier" class="tier"></span>
+            </div>
+            <div class="meter" aria-hidden="true"><span id="meter-fill"></span></div>
+            <p id="score-notice" class="notice"></p>
+            <div id="input-warnings" class="warnings" hidden></div>
+
+            <h3>Largest model contributions</h3>
+            <div id="explanations" class="explanations"></div>
+            <p id="explanation-notice" class="fine-print"></p>
+
+            <div class="review-box">
+              <p class="step">03 · Human decision</p>
+              <h3>Record reviewer disposition</h3>
+              <form id="review-form">
+                <label>
+                  Action
+                  <select name="action" required>
+                    <option value="">Select an action</option>
+                    <option value="escalate">Escalate for attention</option>
+                    <option value="monitor">Monitor</option>
+                    <option value="standard_process">Continue standard process</option>
+                  </select>
+                </label>
+                <label>
+                  Rationale
+                  <textarea name="rationale" minlength="5" maxlength="500" rows="3" required placeholder="Document the operational reason for this decision."></textarea>
+                </label>
+                <button class="secondary" type="submit">Record review</button>
+                <p id="review-message" class="message" role="status" hidden></p>
+              </form>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <span id="model-status">Loading verified model metadata…</span>
+      <a href="/docs">API documentation</a>
+    </footer>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

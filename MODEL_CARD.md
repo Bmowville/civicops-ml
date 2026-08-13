@@ -4,7 +4,7 @@
 
 CivicOps ML estimates whether an NYC 311 service request will remain unresolved for more than seven calendar days. The current candidate is a regularized logistic-regression pipeline using only information available when a request is created.
 
-**Status:** research candidate; not approved for operational deployment.
+**Status:** version 0.2.0 research candidate with a local human-review API; not approved for networked operational deployment.
 
 **Intended use:** help a human operations reviewer identify requests that may warrant earlier attention. The score must not automatically deny, close, deprioritize, or reroute public services, and it is not a measure of resident importance, agency quality, or employee performance.
 
@@ -92,7 +92,7 @@ High-volume test groups still show meaningful calibration differences. The model
 
 Before any operational release, the project should define owners and alert thresholds for input-category drift, unseen-category rate, score PSI, delayed-outcome prevalence, monthly average precision, Brier score, and calibration by agency and borough. A release must also include human-review procedures, an appeal/correction path, privacy review, rollback criteria, and retraining rules.
 
-The current evidence supports continuing into a controlled, human-in-the-loop application and API. It does not yet support unattended live decision-making; the release requirements above must be implemented and verified first.
+The current build includes a controlled local human-in-the-loop application and API. It does not yet support a networked release or unattended live decision-making; the release requirements above must be implemented and verified first.
 
 ## Reproducibility
 

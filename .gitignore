@@ -10,3 +10,6 @@ build/
 # Raw extracts and trained artifacts are reproducible and stay out of Git.
 data/
 models/
+
+# Local runtime state is never committed.
+var/
