@@ -1,20 +1,88 @@
-"""SQLite audit store for predictions and required human reviews."""
+"""Audited SQLite and PostgreSQL persistence for CivicOps ML."""
 
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+from hashlib import sha256
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from importlib.resources import files
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Protocol
 from uuid import uuid4
+
+import psycopg
+from psycopg.errors import ForeignKeyViolation, UniqueViolation
+from psycopg_pool import NullConnectionPool, PoolTimeout
 
 from .schemas import PredictionRequest, ReviewRequest, ReviewResponse
 
 
+@dataclass(frozen=True)
+class Actor:
+    """Authenticated application actor written to every audit event."""
+
+    subject: str
+    display_name: str
+    role: str
+
+
+class AuditStoreProtocol(Protocol):
+    def record_prediction(
+        self,
+        request: PredictionRequest,
+        probability: float,
+        review_tier: str,
+        model_sha256: str,
+        actor: Actor,
+    ) -> str: ...
+
+    def record_review(
+        self,
+        prediction_id: str,
+        review: ReviewRequest,
+        actor: Actor,
+    ) -> ReviewResponse: ...
+
+    def audit_summary(self) -> dict[str, int]: ...
+
+    def ready(self) -> bool: ...
+
+    def close(self) -> None: ...
+
+
+SQLITE_SCHEMA = """
+PRAGMA journal_mode = WAL;
+CREATE TABLE IF NOT EXISTS predictions (
+    prediction_id TEXT PRIMARY KEY,
+    recorded_at TEXT NOT NULL,
+    request_json TEXT NOT NULL,
+    probability REAL NOT NULL CHECK (probability >= 0 AND probability <= 1),
+    review_tier TEXT NOT NULL,
+    model_sha256 TEXT NOT NULL,
+    actor_id TEXT NOT NULL DEFAULT 'legacy-local-user',
+    actor_name TEXT NOT NULL DEFAULT 'Legacy local user',
+    actor_role TEXT NOT NULL DEFAULT 'CivicOps.Operator'
+);
+CREATE TABLE IF NOT EXISTS reviews (
+    review_id TEXT PRIMARY KEY,
+    prediction_id TEXT NOT NULL UNIQUE,
+    recorded_at TEXT NOT NULL,
+    action TEXT NOT NULL,
+    rationale TEXT NOT NULL,
+    actor_id TEXT NOT NULL DEFAULT 'legacy-local-user',
+    actor_name TEXT NOT NULL DEFAULT 'Legacy local user',
+    actor_role TEXT NOT NULL DEFAULT 'CivicOps.Operator',
+    FOREIGN KEY (prediction_id) REFERENCES predictions(prediction_id)
+);
+"""
+
+
 class AuditStore:
-    """Persist model calls and reviewer dispositions without resident identifiers."""
+    """SQLite development store with the same contract as PostgreSQL."""
 
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -39,30 +107,29 @@ class AuditStore:
         finally:
             connection.close()
 
+    @staticmethod
+    def _ensure_columns(
+        connection: sqlite3.Connection,
+        table: str,
+        columns: dict[str, str],
+    ) -> None:
+        existing = {
+            row[1] for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+        }
+        for name, definition in columns.items():
+            if name not in existing:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+
     def _initialize(self) -> None:
+        actor_columns = {
+            "actor_id": "TEXT NOT NULL DEFAULT 'legacy-local-user'",
+            "actor_name": "TEXT NOT NULL DEFAULT 'Legacy local user'",
+            "actor_role": "TEXT NOT NULL DEFAULT 'CivicOps.Operator'",
+        }
         with self._connection() as connection:
-            connection.executescript(
-                """
-                PRAGMA journal_mode = WAL;
-                CREATE TABLE IF NOT EXISTS predictions (
-                    prediction_id TEXT PRIMARY KEY,
-                    recorded_at TEXT NOT NULL,
-                    request_json TEXT NOT NULL,
-                    probability REAL NOT NULL CHECK (probability >= 0 AND probability <= 1),
-                    review_tier TEXT NOT NULL,
-                    model_sha256 TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS reviews (
-                    review_id TEXT PRIMARY KEY,
-                    prediction_id TEXT NOT NULL UNIQUE,
-                    recorded_at TEXT NOT NULL,
-                    action TEXT NOT NULL,
-                    rationale TEXT NOT NULL,
-                    reviewer_role TEXT NOT NULL,
-                    FOREIGN KEY (prediction_id) REFERENCES predictions(prediction_id)
-                );
-                """
-            )
+            connection.executescript(SQLITE_SCHEMA)
+            self._ensure_columns(connection, "predictions", actor_columns)
+            self._ensure_columns(connection, "reviews", actor_columns)
 
     def record_prediction(
         self,
@@ -70,6 +137,7 @@ class AuditStore:
         probability: float,
         review_tier: str,
         model_sha256: str,
+        actor: Actor,
     ) -> str:
         prediction_id = str(uuid4())
         recorded_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -78,9 +146,9 @@ class AuditStore:
             connection.execute(
                 """
                 INSERT INTO predictions (
-                    prediction_id, recorded_at, request_json,
-                    probability, review_tier, model_sha256
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    prediction_id, recorded_at, request_json, probability,
+                    review_tier, model_sha256, actor_id, actor_name, actor_role
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     prediction_id,
@@ -89,11 +157,19 @@ class AuditStore:
                     probability,
                     review_tier,
                     model_sha256,
+                    actor.subject,
+                    actor.display_name,
+                    actor.role,
                 ),
             )
         return prediction_id
 
-    def record_review(self, prediction_id: str, review: ReviewRequest) -> ReviewResponse:
+    def record_review(
+        self,
+        prediction_id: str,
+        review: ReviewRequest,
+        actor: Actor,
+    ) -> ReviewResponse:
         review_id = str(uuid4())
         recorded_at = datetime.now(timezone.utc)
         try:
@@ -107,9 +183,9 @@ class AuditStore:
                 connection.execute(
                     """
                     INSERT INTO reviews (
-                        review_id, prediction_id, recorded_at,
-                        action, rationale, reviewer_role
-                    ) VALUES (?, ?, ?, ?, ?, ?)
+                        review_id, prediction_id, recorded_at, action, rationale,
+                        actor_id, actor_name, actor_role
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         review_id,
@@ -117,7 +193,9 @@ class AuditStore:
                         recorded_at.isoformat(timespec="seconds"),
                         review.action,
                         review.rationale,
-                        review.reviewer_role,
+                        actor.subject,
+                        actor.display_name,
+                        actor.role,
                     ),
                 )
         except sqlite3.IntegrityError as exc:
@@ -136,3 +214,184 @@ class AuditStore:
             return True
         except sqlite3.Error:
             return False
+
+    def audit_summary(self) -> dict[str, int]:
+        with self._connection() as connection:
+            prediction_count = connection.execute(
+                "SELECT count(*) FROM predictions"
+            ).fetchone()[0]
+            review_count = connection.execute(
+                "SELECT count(*) FROM reviews"
+            ).fetchone()[0]
+        return {
+            "prediction_count": prediction_count,
+            "review_count": review_count,
+        }
+
+    def close(self) -> None:
+        """SQLite connections are opened per operation and need no pool cleanup."""
+
+
+class PostgresAuditStore:
+    """Neon-compatible PostgreSQL store isolated in the civicops schema."""
+
+    def __init__(self, database_url: str, *, max_connections: int = 5) -> None:
+        if not database_url.startswith(("postgres://", "postgresql://")):
+            raise ValueError("DATABASE_URL must use a PostgreSQL scheme")
+        self.pool = NullConnectionPool(
+            database_url,
+            max_size=max_connections,
+            open=False,
+            timeout=10,
+            check=NullConnectionPool.check_connection,
+        )
+        self.pool.open(wait=True, timeout=15)
+        self._apply_migrations()
+
+    def _apply_migrations(self) -> None:
+        migration_root = files("civicops_ml").joinpath("migrations")
+        migration_paths = sorted(
+            entry for entry in migration_root.iterdir() if entry.name.endswith(".sql")
+        )
+        with self.pool.connection() as connection:
+            connection.execute("CREATE SCHEMA IF NOT EXISTS civicops")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS civicops.schema_migrations (
+                    version TEXT PRIMARY KEY,
+                    sha256 CHAR(64) NOT NULL,
+                    applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            applied = dict(
+                connection.execute(
+                    "SELECT version, sha256 FROM civicops.schema_migrations"
+                ).fetchall()
+            )
+            for migration in migration_paths:
+                version = migration.name
+                migration_sql = migration.read_text(encoding="utf-8").replace(
+                    "\r\n", "\n"
+                )
+                migration_sql = f"{migration_sql.rstrip()}\n"
+                migration_sha256 = sha256(migration_sql.encode("utf-8")).hexdigest()
+                if version in applied:
+                    if applied[version] != migration_sha256:
+                        raise RuntimeError(
+                            f"applied migration {version} no longer matches its checksum"
+                        )
+                    continue
+                with connection.transaction():
+                    connection.execute(migration_sql)
+                    connection.execute(
+                        """
+                        INSERT INTO civicops.schema_migrations (version, sha256)
+                        VALUES (%s, %s)
+                        """,
+                        (version, migration_sha256),
+                    )
+
+    def record_prediction(
+        self,
+        request: PredictionRequest,
+        probability: float,
+        review_tier: str,
+        model_sha256: str,
+        actor: Actor,
+    ) -> str:
+        prediction_id = str(uuid4())
+        with self.pool.connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO civicops.predictions (
+                    prediction_id, request_json, probability, review_tier,
+                    model_sha256, actor_id, actor_name, actor_role
+                ) VALUES (%s, %s::jsonb, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    prediction_id,
+                    json.dumps(request.model_dump(mode="json"), sort_keys=True),
+                    probability,
+                    review_tier,
+                    model_sha256,
+                    actor.subject,
+                    actor.display_name,
+                    actor.role,
+                ),
+            )
+        return prediction_id
+
+    def record_review(
+        self,
+        prediction_id: str,
+        review: ReviewRequest,
+        actor: Actor,
+    ) -> ReviewResponse:
+        review_id = str(uuid4())
+        recorded_at = datetime.now(timezone.utc)
+        try:
+            with self.pool.connection() as connection:
+                connection.execute(
+                    """
+                    INSERT INTO civicops.reviews (
+                        review_id, prediction_id, action, rationale,
+                        actor_id, actor_name, actor_role
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        review_id,
+                        prediction_id,
+                        review.action,
+                        review.rationale,
+                        actor.subject,
+                        actor.display_name,
+                        actor.role,
+                    ),
+                )
+        except ForeignKeyViolation as exc:
+            raise LookupError("prediction not found") from exc
+        except UniqueViolation as exc:
+            raise ValueError("a review is already recorded for this prediction") from exc
+        return ReviewResponse(
+            review_id=review_id,
+            prediction_id=prediction_id,
+            action=review.action,
+            recorded_at=recorded_at,
+        )
+
+    def ready(self) -> bool:
+        try:
+            with self.pool.connection(timeout=3) as connection:
+                connection.execute("SELECT 1").fetchone()
+            return True
+        except (psycopg.Error, PoolTimeout, TimeoutError):
+            return False
+
+    def audit_summary(self) -> dict[str, int]:
+        with self.pool.connection() as connection:
+            prediction_count = connection.execute(
+                "SELECT count(*) FROM civicops.predictions"
+            ).fetchone()[0]
+            review_count = connection.execute(
+                "SELECT count(*) FROM civicops.reviews"
+            ).fetchone()[0]
+        return {
+            "prediction_count": prediction_count,
+            "review_count": review_count,
+        }
+
+    def close(self) -> None:
+        self.pool.close()
+
+
+def create_audit_store() -> AuditStoreProtocol:
+    """Select durable PostgreSQL when configured, otherwise local SQLite."""
+
+    database_url = os.environ.get("DATABASE_URL")
+    environment = os.environ.get("CIVICOPS_ENVIRONMENT", "development").lower()
+    if database_url:
+        return PostgresAuditStore(database_url)
+    if environment not in {"development", "test"}:
+        raise RuntimeError("DATABASE_URL is required outside development")
+    return AuditStore(Path(os.environ.get("CIVICOPS_DB_PATH", "var/civicops.sqlite3")))

@@ -4,7 +4,7 @@ CivicOps ML is a reproducible machine-learning system that estimates whether an 
 
 ## Project status
 
-The data contract, source audit, chronological evaluation, explainability analysis, drift checks, and calibration experiment are complete. The model now runs behind a versioned FastAPI service and a local operations console that requires a recorded human disposition for every score. The source audit covers 9,106,406 requests created from January 2024 through June 2026. Modeling uses a reproducible 641,232-row, time-stratified extract with separate training, validation, and 2026 test periods.
+The data contract, source audit, chronological evaluation, explainability analysis, drift checks, and calibration experiment are complete. The model runs behind a versioned FastAPI service and an authenticated operations console that requires a recorded human disposition for every score. Microsoft Entra provides single-tenant identity and application roles; Neon PostgreSQL provides durable audit storage with versioned migrations. The source audit covers 9,106,406 requests created from January 2024 through June 2026. Modeling uses a reproducible 641,232-row, time-stratified extract with separate training, validation, and 2026 test periods.
 
 The provisional candidate is a regularized logistic model without ZIP code, borough, or community-board inputs. On the held-out sample it reached 0.749 average precision. Its highest-risk 10% contained 39.7% of delayed requests at 77.9% precision. Validation did not support adding global or agency-aware probability scaling, so the raw score was retained. These are retrospective sample results, not production-performance claims.
 
@@ -25,17 +25,21 @@ The provisional candidate is a regularized logistic model without ZIP code, boro
 
 The [model card](MODEL_CARD.md), [serving architecture](docs/serving.md), [model specification](docs/model-spec.md), [data audit](docs/data-audit.md), [baseline results](docs/baseline-results.md), and [changelog](CHANGELOG.md) document the system and its evidence.
 
-## Local application
+## Application runtime
 
-After building the ignored local model artifacts, start the API and operator console on localhost:
+Runtime configuration is read from environment variables or an ignored `.env.local` file. The committed [`.env.example`](.env.example) contains placeholders only. Entra credentials, the session signing key, and database credentials are never committed.
+
+After building the ignored model artifacts and configuring an Entra app registration and database, start the API and operator console on localhost:
 
 ```bash
 python -m civicops_ml.api
 ```
 
-Open `http://127.0.0.1:8000` for the review console or `http://127.0.0.1:8000/docs` for the OpenAPI interface. Runtime audit records are written to the ignored `var/civicops.sqlite3` database.
+Open `http://localhost:8000` for the review console. Entra sign-in and an assigned `CivicOps.Operator` or `CivicOps.Administrator` role are required. The authenticated OpenAPI document is available at `/docs`.
 
-The service fails closed when the model digest differs from the diagnostic report. It rejects post-outcome fields, fine-grained location inputs, timestamps without a UTC offset, timestamps outside the supported cohort, and unexpected request properties. This local build has no identity layer and must remain bound to localhost until authentication and authorization are implemented.
+The service fails closed when the model digest differs from the diagnostic report, PostgreSQL is unavailable outside development or test, identity configuration is incomplete, or an Entra token fails tenant, audience, issuer, expiration, or role validation. It rejects post-outcome fields, fine-grained location inputs, timestamps without a UTC offset, timestamps outside the supported cohort, and unexpected request properties.
+
+Every prediction and review records the Entra subject, display name, application role, model digest, and UTC event time. Operators can score and review. Administrators additionally have access to aggregate audit counts. Mutating requests require a session-bound CSRF token.
 
 ## Validation
 
@@ -52,6 +56,8 @@ Run the validation suite without downloading data:
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+The standard test suite uses isolated SQLite databases and skips the external PostgreSQL integration test. Setting `CIVICOPS_TEST_DATABASE_URL` enables the migration and audit round-trip test against a dedicated test or development database.
 
 The audit utility queries bounded time windows and writes aggregate findings only; raw service-request records are not committed.
 

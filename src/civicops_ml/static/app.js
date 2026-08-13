@@ -3,6 +3,22 @@ const reviewForm = document.querySelector("#review-form");
 const formError = document.querySelector("#form-error");
 const reviewMessage = document.querySelector("#review-message");
 let activePredictionId = null;
+let csrfToken = null;
+
+function requireLogin(response) {
+  if (response.status === 401) {
+    window.location.assign("/login");
+    throw new Error("Your session has ended. Redirecting to sign in.");
+  }
+  return response;
+}
+
+function mutationHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "X-CSRF-Token": csrfToken,
+  };
+}
 
 function setBusy(form, busy) {
   form.querySelectorAll("button, input, select, textarea").forEach((element) => {
@@ -72,9 +88,10 @@ predictionForm.addEventListener("submit", async (event) => {
     values.created_at = localDateTimeToIso(values.created_at);
     const response = await fetch("/api/v1/predictions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: mutationHeaders(),
       body: JSON.stringify(values),
     });
+    requireLogin(response);
     const payload = await response.json();
     if (!response.ok) throw new Error(errorMessage(payload, "Prediction failed."));
     renderPrediction(payload);
@@ -93,12 +110,12 @@ reviewForm.addEventListener("submit", async (event) => {
   setBusy(reviewForm, true);
   try {
     const payload = Object.fromEntries(new FormData(reviewForm));
-    payload.reviewer_role = "operations_reviewer";
     const response = await fetch(`/api/v1/predictions/${activePredictionId}/reviews`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: mutationHeaders(),
       body: JSON.stringify(payload),
     });
+    requireLogin(response);
     const result = await response.json();
     if (!response.ok) throw new Error(errorMessage(result, "Review could not be recorded."));
     reviewMessage.textContent = `Review recorded: ${result.action.replaceAll("_", " ")}.`;
@@ -113,12 +130,34 @@ reviewForm.addEventListener("submit", async (event) => {
   }
 });
 
-fetch("/api/v1/model")
-  .then((response) => response.json())
-  .then((model) => {
-    document.querySelector("#model-status").textContent =
-      `Verified ${model.model} · ${model.calibration} calibration · human review only`;
-  })
+async function initializeSession() {
+  setBusy(predictionForm, true);
+  const sessionResponse = requireLogin(await fetch("/api/v1/session"));
+  if (!sessionResponse.ok) throw new Error("Session validation failed.");
+  const session = await sessionResponse.json();
+  csrfToken = session.csrf_token;
+  document.querySelector("#session-user").textContent = session.user.display_name;
+
+  const modelResponse = requireLogin(await fetch("/api/v1/model"));
+  if (!modelResponse.ok) throw new Error("Model metadata unavailable.");
+  const model = await modelResponse.json();
+  document.querySelector("#model-status").textContent =
+    `Verified ${model.model} · ${model.calibration} calibration · human review only`;
+  setBusy(predictionForm, false);
+}
+
+document.querySelector("#logout").addEventListener("click", async () => {
+  const response = requireLogin(await fetch("/logout", {
+    method: "POST",
+    headers: mutationHeaders(),
+  }));
+  const result = await response.json();
+  if (!response.ok) throw new Error(errorMessage(result, "Sign out failed."));
+  window.location.assign(result.logout_url);
+});
+
+initializeSession()
   .catch(() => {
-    document.querySelector("#model-status").textContent = "Model metadata unavailable";
+    document.querySelector("#model-status").textContent =
+      "Secure session or model metadata unavailable";
   });

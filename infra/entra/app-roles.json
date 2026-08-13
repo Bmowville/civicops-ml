@@ -1,0 +1,24 @@
+[
+  {
+    "allowedMemberTypes": [
+      "User"
+    ],
+    "description": "Create CivicOps scores and record human review decisions.",
+    "displayName": "CivicOps Operator",
+    "id": "b1ab66f1-2818-4e8a-984b-caad6bfd4748",
+    "isEnabled": true,
+    "origin": "Application",
+    "value": "CivicOps.Operator"
+  },
+  {
+    "allowedMemberTypes": [
+      "User"
+    ],
+    "description": "Operate CivicOps and read administrative audit summaries.",
+    "displayName": "CivicOps Administrator",
+    "id": "3fc9cbf3-f3e7-4002-92b9-036aa12f88d1",
+    "isEnabled": true,
+    "origin": "Application",
+    "value": "CivicOps.Administrator"
+  }
+]

@@ -112,9 +112,8 @@ class ReviewRequest(BaseModel):
 
     action: Literal["escalate", "monitor", "standard_process"]
     rationale: str = Field(min_length=5, max_length=500)
-    reviewer_role: str = Field(default="operations_reviewer", min_length=2, max_length=80)
 
-    @field_validator("rationale", "reviewer_role", mode="before")
+    @field_validator("rationale", mode="before")
     @classmethod
     def clean_text(cls, value: object) -> str:
         if not isinstance(value, str):

@@ -38,6 +38,9 @@ body {
 .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: var(--forest); color: white; font-size: 12px; letter-spacing: .08em; }
 .status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #36a36f; box-shadow: 0 0 0 4px rgba(54, 163, 111, .13); }
+.session-controls { display: flex; align-items: center; gap: 18px; }
+.text-button { padding: 6px 0; border-radius: 0; background: transparent; color: var(--forest); font-size: 12px; }
+.text-button:hover { text-decoration: underline; }
 
 main { width: min(1180px, 90vw); margin: 0 auto; padding: 64px 0 80px; }
 .hero { max-width: 800px; margin-bottom: 38px; }
