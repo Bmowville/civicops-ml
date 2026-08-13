@@ -1,0 +1,42 @@
+{
+  "audit_date": "2026-08-13",
+  "bounded_sample": {
+    "duplicate_keys": 0,
+    "invalid_negative_durations": 3,
+    "rows": 48000,
+    "seven_day_positive_rate": 0.1662,
+    "source_windows": 120
+  },
+  "candidate_feature_missing_rates": {
+    "agency": 0.0,
+    "borough": 0.0,
+    "community_board": 0.0,
+    "complaint_type": 0.0,
+    "descriptor": 0.0062,
+    "incident_zip": 0.0083,
+    "location_type": 0.1109,
+    "open_data_channel_type": 0.0
+  },
+  "cohort": {
+    "end_exclusive": "2026-07-01T00:00:00",
+    "invalid_negative_durations": 2004,
+    "requests": 9106406,
+    "seven_day_positive": 1605981,
+    "seven_day_positive_rate": 0.1764,
+    "start": "2024-01-01T00:00:00"
+  },
+  "dataset_id": "erm2-nwe9",
+  "dataset_name": "311 Service Requests from 2020 to Present",
+  "resolution_days_percentiles": {
+    "p50": 0.237,
+    "p75": 2.47,
+    "p90": 15.495,
+    "p95": 43.68,
+    "p99": 194.36
+  },
+  "target": {
+    "horizon_hours": 168,
+    "name": "slow_resolution_7d",
+    "positive_definition": "No valid closure timestamp within 168 hours of creation"
+  }
+}
