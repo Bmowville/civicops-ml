@@ -80,6 +80,8 @@ A nonlinear challenger will be considered only after the baseline pipeline is va
 - precision at the chosen review capacity
 - performance and calibration by agency and borough
 
+The geography-free ablation becomes the provisional candidate when its validation average precision is within 0.005 and its Brier score is within 0.001 of the full model. This rule favors the simpler model when predictive quality is effectively equivalent and avoids unnecessary location proxies.
+
 Threshold selection will use validation data only. The 2026 test period remains untouched until the pipeline and threshold are fixed.
 
 ## Known risks

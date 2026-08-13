@@ -1,0 +1,517 @@
+{
+  "candidate_selection": {
+    "rule": "prefer no-geography when average precision is within 0.005 and Brier score is within 0.001 of the full model",
+    "selected": "logistic_no_geography",
+    "selected_on": "validation only",
+    "validation_comparison": {
+      "logistic_full": {
+        "average_precision": 0.784646,
+        "brier": 0.065823
+      },
+      "logistic_no_geography": {
+        "average_precision": 0.783569,
+        "brier": 0.065778
+      }
+    }
+  },
+  "environment": {
+    "pandas": "3.0.5",
+    "python": "3.12.4",
+    "scikit_learn": "1.9.0"
+  },
+  "extract": {
+    "path": "data/modeling.csv.gz",
+    "population_split_summary": {
+      "test": {
+        "invalid_negative_duration": 255,
+        "positive": 369325,
+        "prevalence": 0.185163,
+        "rows": 1994592
+      },
+      "train": {
+        "invalid_negative_duration": 1472,
+        "positive": 928880,
+        "prevalence": 0.178097,
+        "rows": 5215586
+      },
+      "validation": {
+        "invalid_negative_duration": 277,
+        "positive": 307776,
+        "prevalence": 0.16231,
+        "rows": 1896228
+      }
+    },
+    "rows": 641232,
+    "sampling": {
+      "coverage_fraction": 0.071429,
+      "maximum_rows_per_window": 3557,
+      "method": "seeded stratified selection of three complete four-hour windows per week",
+      "seed": 3112026,
+      "window_hours": 4,
+      "windows": 390
+    },
+    "sha256": "a3bdee515a2fe05df7b7868e3399d4987c38d088d1420713b79ba4691670c094"
+  },
+  "features": {
+    "full": [
+      "agency",
+      "complaint_type",
+      "descriptor",
+      "location_type",
+      "incident_zip",
+      "borough",
+      "open_data_channel_type",
+      "community_board",
+      "created_hour",
+      "created_day_of_week",
+      "created_month",
+      "created_is_weekend"
+    ],
+    "no_geography": [
+      "agency",
+      "complaint_type",
+      "descriptor",
+      "location_type",
+      "open_data_channel_type",
+      "created_hour",
+      "created_day_of_week",
+      "created_month",
+      "created_is_weekend"
+    ]
+  },
+  "generated_at": "2026-08-13T09:56:31-04:00",
+  "models": {
+    "constant_prevalence": {
+      "test": {
+        "average_precision": 0.196049,
+        "brier": 0.157653,
+        "ece_10": 0.006275,
+        "log_loss": 0.495004,
+        "mean_probability": 0.189775,
+        "positives": 26679,
+        "prevalence": 0.196049,
+        "roc_auc": 0.5,
+        "rows": 136083,
+        "top_10_percent": {
+          "precision": 0.207436,
+          "recall": 0.105814,
+          "review_rate": 0.100005,
+          "reviewed": 13609
+        }
+      },
+      "validation": {
+        "average_precision": 0.174682,
+        "brier": 0.144396,
+        "ece_10": 0.015093,
+        "log_loss": 0.463989,
+        "mean_probability": 0.189775,
+        "positives": 22506,
+        "prevalence": 0.174682,
+        "roc_auc": 0.5,
+        "rows": 128840,
+        "top_10_percent": {
+          "precision": 0.19823,
+          "recall": 0.113481,
+          "review_rate": 0.1,
+          "reviewed": 12884
+        }
+      }
+    },
+    "historical_rate": {
+      "test": {
+        "average_precision": 0.69578,
+        "brier": 0.090143,
+        "ece_10": 0.025106,
+        "log_loss": 0.278713,
+        "mean_probability": 0.179917,
+        "positives": 26679,
+        "prevalence": 0.196049,
+        "roc_auc": 0.915345,
+        "rows": 136083,
+        "top_10_percent": {
+          "precision": 0.697627,
+          "recall": 0.35586,
+          "review_rate": 0.100005,
+          "reviewed": 13609
+        }
+      },
+      "validation": {
+        "average_precision": 0.724137,
+        "brier": 0.074007,
+        "ece_10": 0.019155,
+        "log_loss": 0.220238,
+        "mean_probability": 0.179755,
+        "positives": 22506,
+        "prevalence": 0.174682,
+        "roc_auc": 0.937381,
+        "rows": 128840,
+        "top_10_percent": {
+          "precision": 0.683095,
+          "recall": 0.391051,
+          "review_rate": 0.1,
+          "reviewed": 12884
+        }
+      }
+    },
+    "logistic_full": {
+      "test": {
+        "average_precision": 0.748443,
+        "brier": 0.083461,
+        "ece_10": 0.026879,
+        "log_loss": 0.266551,
+        "mean_probability": 0.173638,
+        "positives": 26679,
+        "prevalence": 0.196049,
+        "roc_auc": 0.927779,
+        "rows": 136083,
+        "top_10_percent": {
+          "precision": 0.781027,
+          "recall": 0.398403,
+          "review_rate": 0.100005,
+          "reviewed": 13609
+        }
+      },
+      "validation": {
+        "average_precision": 0.784646,
+        "brier": 0.065823,
+        "ece_10": 0.010389,
+        "log_loss": 0.200495,
+        "mean_probability": 0.176106,
+        "positives": 22506,
+        "prevalence": 0.174682,
+        "roc_auc": 0.953028,
+        "rows": 128840,
+        "top_10_percent": {
+          "precision": 0.778485,
+          "recall": 0.445659,
+          "review_rate": 0.1,
+          "reviewed": 12884
+        }
+      }
+    },
+    "logistic_no_geography": {
+      "test": {
+        "average_precision": 0.7491,
+        "brier": 0.083116,
+        "ece_10": 0.029105,
+        "log_loss": 0.26545,
+        "mean_probability": 0.17338,
+        "positives": 26679,
+        "prevalence": 0.196049,
+        "roc_auc": 0.928167,
+        "rows": 136083,
+        "top_10_percent": {
+          "precision": 0.779043,
+          "recall": 0.397391,
+          "review_rate": 0.100005,
+          "reviewed": 13609
+        }
+      },
+      "validation": {
+        "average_precision": 0.783569,
+        "brier": 0.065778,
+        "ece_10": 0.010947,
+        "log_loss": 0.200431,
+        "mean_probability": 0.176134,
+        "positives": 22506,
+        "prevalence": 0.174682,
+        "roc_auc": 0.952905,
+        "rows": 128840,
+        "top_10_percent": {
+          "precision": 0.775691,
+          "recall": 0.444059,
+          "review_rate": 0.1,
+          "reviewed": 12884
+        }
+      }
+    }
+  },
+  "operational_threshold": {
+    "model": "logistic_no_geography",
+    "selected_on": "validation",
+    "selection_rule": "90th percentile of candidate validation scores",
+    "test": {
+      "precision": 0.80366,
+      "recall": 0.309457,
+      "review_rate": 0.075491,
+      "reviewed": 10273,
+      "threshold": 0.66999111
+    },
+    "validation": {
+      "precision": 0.77557,
+      "recall": 0.444059,
+      "review_rate": 0.100016,
+      "reviewed": 12886,
+      "threshold": 0.66999111
+    }
+  },
+  "splits": {
+    "test": {
+      "end": "2026-06-28T07:59:59",
+      "prevalence": 0.196049,
+      "rows": 136083,
+      "start": "2026-01-03T04:00:37"
+    },
+    "train": {
+      "end": "2025-06-30T19:59:53",
+      "prevalence": 0.189775,
+      "rows": 376309,
+      "start": "2024-01-04T00:00:13"
+    },
+    "validation": {
+      "end": "2025-12-31T15:59:26",
+      "prevalence": 0.174682,
+      "rows": 128840,
+      "start": "2025-07-01T12:00:00"
+    }
+  },
+  "test_calibration_bins": [
+    {
+      "lower": 0.0,
+      "mean_probability": 0.012738,
+      "observed_rate": 0.035336,
+      "rows": 91465,
+      "upper": 0.1
+    },
+    {
+      "lower": 0.1,
+      "mean_probability": 0.146988,
+      "observed_rate": 0.138969,
+      "rows": 8340,
+      "upper": 0.2
+    },
+    {
+      "lower": 0.2,
+      "mean_probability": 0.243286,
+      "observed_rate": 0.200275,
+      "rows": 3640,
+      "upper": 0.3
+    },
+    {
+      "lower": 0.3,
+      "mean_probability": 0.358825,
+      "observed_rate": 0.432425,
+      "rows": 3522,
+      "upper": 0.4
+    },
+    {
+      "lower": 0.4,
+      "mean_probability": 0.444688,
+      "observed_rate": 0.539864,
+      "rows": 4553,
+      "upper": 0.5
+    },
+    {
+      "lower": 0.5,
+      "mean_probability": 0.562461,
+      "observed_rate": 0.599781,
+      "rows": 6389,
+      "upper": 0.6
+    },
+    {
+      "lower": 0.6,
+      "mean_probability": 0.64037,
+      "observed_rate": 0.69679,
+      "rows": 9284,
+      "upper": 0.7
+    },
+    {
+      "lower": 0.7,
+      "mean_probability": 0.740836,
+      "observed_rate": 0.702862,
+      "rows": 3914,
+      "upper": 0.8
+    },
+    {
+      "lower": 0.8,
+      "mean_probability": 0.838877,
+      "observed_rate": 0.806082,
+      "rows": 2006,
+      "upper": 0.9
+    },
+    {
+      "lower": 0.9,
+      "mean_probability": 0.979074,
+      "observed_rate": 0.979461,
+      "rows": 2970,
+      "upper": 1.0
+    }
+  ],
+  "test_subgroups": {
+    "agency": [
+      {
+        "average_precision": 4e-05,
+        "brier": 1.8e-05,
+        "calibration_gap": 0.000219,
+        "group": "NYPD",
+        "mean_probability": 0.000237,
+        "prevalence": 1.8e-05,
+        "rows": 56179
+      },
+      {
+        "average_precision": 0.723458,
+        "brier": 0.144171,
+        "calibration_gap": -0.062615,
+        "group": "HPD",
+        "mean_probability": 0.316017,
+        "prevalence": 0.378632,
+        "rows": 33415
+      },
+      {
+        "average_precision": 0.336329,
+        "brier": 0.07628,
+        "calibration_gap": 0.003443,
+        "group": "DSNY",
+        "mean_probability": 0.098822,
+        "prevalence": 0.095379,
+        "rows": 11816
+      },
+      {
+        "average_precision": 0.58182,
+        "brier": 0.186527,
+        "calibration_gap": -0.109348,
+        "group": "DOT",
+        "mean_probability": 0.203086,
+        "prevalence": 0.312434,
+        "rows": 11292
+      },
+      {
+        "average_precision": 0.305169,
+        "brier": 0.123644,
+        "calibration_gap": -0.006278,
+        "group": "DEP",
+        "mean_probability": 0.152237,
+        "prevalence": 0.158514,
+        "rows": 7728
+      },
+      {
+        "average_precision": 0.817074,
+        "brier": 0.182002,
+        "calibration_gap": 0.0446,
+        "group": "DPR",
+        "mean_probability": 0.557065,
+        "prevalence": 0.512465,
+        "rows": 4613
+      },
+      {
+        "average_precision": 0.712562,
+        "brier": 0.220946,
+        "calibration_gap": 0.099214,
+        "group": "DOB",
+        "mean_probability": 0.573666,
+        "prevalence": 0.474453,
+        "rows": 3973
+      },
+      {
+        "average_precision": 0.916586,
+        "brier": 0.16174,
+        "calibration_gap": -0.108966,
+        "group": "DOHMH",
+        "mean_probability": 0.459256,
+        "prevalence": 0.568222,
+        "rows": 2807
+      },
+      {
+        "average_precision": 0.424744,
+        "brier": 0.08552,
+        "calibration_gap": 0.004601,
+        "group": "DHS",
+        "mean_probability": 0.137012,
+        "prevalence": 0.132411,
+        "rows": 1518
+      },
+      {
+        "average_precision": 0.991855,
+        "brier": 0.01781,
+        "calibration_gap": 0.007405,
+        "group": "TLC",
+        "mean_probability": 0.818253,
+        "prevalence": 0.810848,
+        "rows": 1438
+      },
+      {
+        "average_precision": 0.692157,
+        "brier": 0.24001,
+        "calibration_gap": -0.08281,
+        "group": "DCWP",
+        "mean_probability": 0.466265,
+        "prevalence": 0.549075,
+        "rows": 703
+      },
+      {
+        "average_precision": null,
+        "brier": 0.000505,
+        "calibration_gap": -0.022357,
+        "group": "EDC",
+        "mean_probability": 0.977643,
+        "prevalence": 1.0,
+        "rows": 386
+      },
+      {
+        "average_precision": 0.987708,
+        "brier": 0.051988,
+        "calibration_gap": -0.21043,
+        "group": "OOS",
+        "mean_probability": 0.782324,
+        "prevalence": 0.992754,
+        "rows": 138
+      }
+    ],
+    "borough": [
+      {
+        "average_precision": 0.751918,
+        "brier": 0.081898,
+        "calibration_gap": -0.02663,
+        "group": "BROOKLYN",
+        "mean_probability": 0.169966,
+        "prevalence": 0.196596,
+        "rows": 42534
+      },
+      {
+        "average_precision": 0.730932,
+        "brier": 0.071249,
+        "calibration_gap": -0.015813,
+        "group": "QUEENS",
+        "mean_probability": 0.140074,
+        "prevalence": 0.155887,
+        "rows": 34185
+      },
+      {
+        "average_precision": 0.699147,
+        "brier": 0.094864,
+        "calibration_gap": -0.033559,
+        "group": "BRONX",
+        "mean_probability": 0.183947,
+        "prevalence": 0.217506,
+        "rows": 27213
+      },
+      {
+        "average_precision": 0.808398,
+        "brier": 0.084667,
+        "calibration_gap": -0.019055,
+        "group": "MANHATTAN",
+        "mean_probability": 0.20959,
+        "prevalence": 0.228645,
+        "rows": 26364
+      },
+      {
+        "average_precision": 0.608225,
+        "brier": 0.098019,
+        "calibration_gap": 0.003397,
+        "group": "STATEN ISLAND",
+        "mean_probability": 0.175792,
+        "prevalence": 0.172396,
+        "rows": 5673
+      },
+      {
+        "average_precision": 0.86753,
+        "brier": 0.19094,
+        "calibration_gap": -0.134816,
+        "group": "Unspecified",
+        "mean_probability": 0.417815,
+        "prevalence": 0.552632,
+        "rows": 114
+      }
+    ]
+  }
+}
