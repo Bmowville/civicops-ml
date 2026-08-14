@@ -154,6 +154,34 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(root.headers["location"], "http://testserver/login")
         self.assertEqual(self.client.get("/api/v1/model").status_code, 401)
 
+    def test_documentation_and_schema_reject_anonymous_requests(self) -> None:
+        self.assertEqual(self.client.get("/docs").status_code, 401)
+        self.assertEqual(self.client.get("/openapi.json").status_code, 401)
+
+    def test_authenticated_documentation_renders_protected_swagger_ui(self) -> None:
+        self.sign_in()
+
+        documentation = self.client.get("/docs")
+        self.assertEqual(documentation.status_code, 200)
+        self.assertTrue(documentation.headers["content-type"].startswith("text/html"))
+        self.assertIn("SwaggerUIBundle", documentation.text)
+        self.assertIn("/openapi.json", documentation.text)
+        self.assertIn('"supportedSubmitMethods": ["get"]', documentation.text)
+        self.assertIn(
+            "script-src 'unsafe-inline' https://cdn.jsdelivr.net",
+            documentation.headers["content-security-policy"],
+        )
+
+        schema = self.client.get("/openapi.json")
+        self.assertEqual(schema.status_code, 200)
+        self.assertTrue(
+            schema.headers["content-type"].startswith("application/json")
+        )
+        self.assertEqual(schema.json()["info"]["title"], "CivicOps ML")
+        self.assertEqual(schema.json()["info"]["version"], "0.3.4")
+        self.assertNotIn("/docs", schema.json()["paths"])
+        self.assertNotIn("/openapi.json", schema.json()["paths"])
+
     def test_production_authentication_urls_use_configured_https_origin(self) -> None:
         production_origin = "https://civicops.example.test"
         with patch.dict(

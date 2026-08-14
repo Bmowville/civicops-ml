@@ -14,7 +14,13 @@ from uuid import UUID
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -253,11 +259,20 @@ def create_app(
         response.headers["Permissions-Policy"] = (
             "camera=(), geolocation=(), microphone=(), payment=()"
         )
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; style-src 'self'; script-src 'self'; "
-            "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; "
-            "base-uri 'none'; form-action 'self' https://login.microsoftonline.com"
-        )
+        if request.url.path == "/docs":
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'none'; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "script-src 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "img-src 'self' data:; connect-src 'self'; "
+                "frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+            )
+        else:
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; style-src 'self'; script-src 'self'; "
+                "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; "
+                "base-uri 'none'; form-action 'self' https://login.microsoftonline.com"
+            )
         if _environment() not in {"development", "test"}:
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"
@@ -415,7 +430,29 @@ def create_app(
         return request.app.state.store.audit_summary()
 
     @application.get("/docs", include_in_schema=False)
-    async def api_document(request: Request) -> JSONResponse:
+    async def api_document(request: Request) -> HTMLResponse:
+        _require_roles(request, APPLICATION_ROLES)
+        return get_swagger_ui_html(
+            openapi_url="/openapi.json",
+            title="CivicOps ML API documentation",
+            swagger_js_url=(
+                "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.32.13/"
+                "swagger-ui-bundle.js"
+            ),
+            swagger_css_url=(
+                "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.32.13/"
+                "swagger-ui.css"
+            ),
+            swagger_favicon_url="/static/favicon.svg",
+            swagger_ui_parameters={
+                "deepLinking": True,
+                "displayRequestDuration": True,
+                "supportedSubmitMethods": ["get"],
+            },
+        )
+
+    @application.get("/openapi.json", include_in_schema=False)
+    async def openapi_document(request: Request) -> JSONResponse:
         _require_roles(request, APPLICATION_ROLES)
         return JSONResponse(application.openapi())
 

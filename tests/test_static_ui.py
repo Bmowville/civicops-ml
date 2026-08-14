@@ -7,6 +7,13 @@ from pathlib import Path
 APP_JS = (
     Path(__file__).resolve().parents[1] / "src" / "civicops_ml" / "static" / "app.js"
 ).read_text(encoding="utf-8")
+INDEX_HTML = (
+    Path(__file__).resolve().parents[1]
+    / "src"
+    / "civicops_ml"
+    / "static"
+    / "index.html"
+).read_text(encoding="utf-8")
 
 
 class StaticUiTests(unittest.TestCase):
@@ -33,6 +40,12 @@ class StaticUiTests(unittest.TestCase):
         self.assertLess(
             handler.index("new FormData(reviewForm)"),
             handler.index("setBusy(reviewForm, true)"),
+        )
+
+    def test_api_documentation_opens_in_a_separate_tab(self) -> None:
+        self.assertIn(
+            '<a href="/docs" target="_blank" rel="noopener noreferrer">',
+            INDEX_HTML,
         )
 
 

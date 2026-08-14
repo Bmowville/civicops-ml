@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.4 — 2026-08-14
+
+- Render authenticated interactive API documentation instead of returning raw schema JSON.
+- Protect the OpenAPI schema separately and keep documentation write operations disabled.
+- Open API documentation in a separate browser tab from the operations console.
+
 ## 0.3.3 — 2026-08-14
 
 - Capture prediction and review form values before disabling controls during submission.
