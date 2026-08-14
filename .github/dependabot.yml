@@ -4,6 +4,21 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    allow:
+      - dependency-name: azure-monitor-opentelemetry
+      - dependency-name: fastapi
+      - dependency-name: httpx2
+      - dependency-name: itsdangerous
+      - dependency-name: joblib
+      - dependency-name: msal
+      - dependency-name: numpy
+      - dependency-name: pandas
+      - dependency-name: psycopg
+      - dependency-name: pydantic
+      - dependency-name: python-dotenv
+      - dependency-name: scikit-learn
+      - dependency-name: scipy
+      - dependency-name: uvicorn
     groups:
       python-production:
         dependency-type: production
@@ -20,3 +35,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: python
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
