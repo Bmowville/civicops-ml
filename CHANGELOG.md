@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add a privacy-safe production monitoring baseline tied to the exact model and training extract.
+- Define minimum sample sizes and drift, unseen-category, review-completion, and model-integrity thresholds.
+- Align the model card with the restricted production human-review deployment.
+
 ## 0.3.4 — 2026-08-14
 
 - Render authenticated interactive API documentation instead of returning raw schema JSON.

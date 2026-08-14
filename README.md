@@ -29,7 +29,7 @@ The provisional candidate is a regularized logistic model without ZIP code, boro
 - **Evaluation:** chronological holdout, precision-recall, calibration, recall at a fixed review capacity, and performance by agency and borough
 - **Intended use:** decision support for workload review, not automated denial, closure, or deprioritization of public services
 
-The [model card](MODEL_CARD.md), [serving architecture](docs/serving.md), [model specification](docs/model-spec.md), [data audit](docs/data-audit.md), [baseline results](docs/baseline-results.md), and [changelog](CHANGELOG.md) document the system and its evidence.
+The [model card](MODEL_CARD.md), [serving architecture](docs/serving.md), [model specification](docs/model-spec.md), [data audit](docs/data-audit.md), [baseline results](docs/baseline-results.md), [monitoring reference](reports/monitoring_baseline.json), and [changelog](CHANGELOG.md) document the system and its evidence.
 
 ## Application runtime
 
@@ -89,6 +89,7 @@ Rebuild the ignored modeling extract and baseline report:
 python -m civicops_ml.dataset
 python -m civicops_ml.modeling
 python -m civicops_ml.diagnostics
+python -m civicops_ml.monitoring
 ```
 
 The extraction manifest records the sampling seed, source counts, and SHA-256 digest used for each report. The diagnostic report also records the exact candidate-model and modeling-extract digests.

@@ -4,7 +4,7 @@
 
 CivicOps ML estimates whether an NYC 311 service request will remain unresolved for more than seven calendar days. The current candidate is a regularized logistic-regression pipeline using only information available when a request is created.
 
-**Status:** version 0.2.0 research candidate with a local human-review API; not approved for networked operational deployment.
+**Status:** model candidate deployed with CivicOps ML 0.3.4 in a restricted, single-tenant human-review workflow. It is not approved for automated service decisions or public scoring.
 
 **Intended use:** help a human operations reviewer identify requests that may warrant earlier attention. The score must not automatically deny, close, deprioritize, or reroute public services, and it is not a measure of resident importance, agency quality, or employee performance.
 
@@ -86,13 +86,15 @@ High-volume test groups still show meaningful calibration differences. The model
 - The time-window sample is reproducible but not a census, and its prevalence is somewhat elevated.
 - The model is not reliable for causal conclusions, employee evaluation, or comparisons of resident need.
 - New or renamed categories are pooled by the encoder and may behave differently from historical categories.
-- Subgroup calibration gaps remain large enough to block a public scoring workflow.
+- Subgroup calibration gaps remain large enough to block public or automated scoring.
 
-## Monitoring and release requirements
+## Production controls and monitoring
 
-Before any operational release, the project should define owners and alert thresholds for input-category drift, unseen-category rate, score PSI, delayed-outcome prevalence, monthly average precision, Brier score, and calibration by agency and borough. A release must also include human-review procedures, an appeal/correction path, privacy review, rollback criteria, and retraining rules.
+The deployed workflow requires Microsoft Entra application roles, records the model hash and a human disposition for every completed review, stores the audit trail in Neon PostgreSQL, emits request telemetry to Application Insights, and runs immutable Container Apps revisions with a tested rollback path. The API accepts no service-request identifier, address, ZIP code, borough, community board, status, resolution text, or closure information.
 
-The current build includes a controlled local human-in-the-loop application and API. It does not yet support a networked release or unattended live decision-making; the release requirements above must be implemented and verified first.
+The production-monitoring reference is generated from the training split and bound to the exact model and extract SHA-256 digests. It covers agency, complaint type, descriptor, location type, submission channel, and prediction-score distributions. Monitoring is suppressed below 100 predictions. Warning and critical boundaries are 0.10/0.20 for score PSI, 0.05/0.10 for feature Jensen-Shannon divergence, and 1%/5% for unseen categories. Human-review completion warns below 95% and is critical below 90%; any model-hash mismatch is critical.
+
+Live outcome metrics are intentionally separate from the application audit trail because the service does not collect a request identifier or post-creation outcome. Average precision, Brier score, delayed-outcome prevalence, and subgroup calibration therefore require a new chronological evaluation cohort from the public source rather than joining operational users or rationales back to service requests. No monitoring result can authorize an automated service action.
 
 ## Reproducibility
 

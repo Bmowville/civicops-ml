@@ -40,6 +40,7 @@ test = ["httpx2>=2.10,<3"]
 [project.scripts]
 civicops-ml = "civicops_ml.api:main"
 civicops-migrate = "civicops_ml.migrate:main"
+civicops-monitoring-baseline = "civicops_ml.monitoring:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
