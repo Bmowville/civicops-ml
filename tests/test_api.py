@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from os import environ
 from pathlib import Path
 from typing import Any, Mapping
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -50,6 +52,7 @@ class StubService:
 
 class StubAuthenticator:
     def __init__(self, roles: tuple[str, ...] = (OPERATOR_ROLE,)) -> None:
+        self.last_redirect_uri: str | None = None
         self.user = UserContext(
             subject="00000000-0000-0000-0000-000000000123",
             display_name="Test Operator",
@@ -58,6 +61,7 @@ class StubAuthenticator:
         )
 
     def begin_login(self, redirect_uri: str) -> dict[str, Any]:
+        self.last_redirect_uri = redirect_uri
         return {
             "auth_uri": "https://login.example.test/authorize",
             "state": "test-state",
@@ -81,11 +85,12 @@ class ApiTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary_directory = tempfile.TemporaryDirectory()
         store = AuditStore(Path(self.temporary_directory.name) / "api.sqlite3")
+        self.authenticator = StubAuthenticator()
         self.client_context = TestClient(
             create_app(
                 StubService(),
                 store,
-                StubAuthenticator(),
+                self.authenticator,
                 session_secret="test-session-secret-that-is-at-least-32-characters",
             )
         )
@@ -148,6 +153,40 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(root.status_code, 303)
         self.assertEqual(root.headers["location"], "http://testserver/login")
         self.assertEqual(self.client.get("/api/v1/model").status_code, 401)
+
+    def test_production_authentication_urls_use_configured_https_origin(self) -> None:
+        production_origin = "https://civicops.example.test"
+        with patch.dict(
+            environ,
+            {
+                "CIVICOPS_ENVIRONMENT": "production",
+                "CIVICOPS_PUBLIC_BASE_URL": production_origin,
+            },
+        ):
+            root = self.client.get("/", follow_redirects=False)
+            self.assertEqual(root.headers["location"], f"{production_origin}/login")
+
+            self.client.get("/login", follow_redirects=False)
+            self.assertEqual(
+                self.authenticator.last_redirect_uri,
+                f"{production_origin}/auth/callback",
+            )
+
+            callback = self.client.get(
+                "/auth/callback?code=test-code&state=test-state",
+                follow_redirects=False,
+            )
+            self.assertEqual(callback.headers["location"], f"{production_origin}/")
+
+            csrf_token = self.client.get("/api/v1/session").json()["csrf_token"]
+            logout = self.client.post(
+                "/logout",
+                headers={"X-CSRF-Token": csrf_token},
+            )
+            self.assertEqual(
+                logout.json()["logout_url"],
+                f"https://login.example.test/logout?return={production_origin}/",
+            )
 
     def test_prediction_requires_human_review(self) -> None:
         response = self.authenticated_post("/api/v1/predictions", self.payload)

@@ -131,15 +131,20 @@ def _require_csrf(request: Request) -> None:
         )
 
 
-def _callback_url(request: Request) -> str:
+def _public_url(request: Request, route_name: str) -> str:
+    route_path = str(request.app.url_path_for(route_name))
     public_base_url = os.environ.get("CIVICOPS_PUBLIC_BASE_URL")
     if public_base_url:
         if _environment() not in {"development", "test"} and not public_base_url.startswith(
             "https://"
         ):
             raise RuntimeError("CIVICOPS_PUBLIC_BASE_URL must use HTTPS")
-        return f"{public_base_url.rstrip('/')}/auth/callback"
-    return str(request.url_for("auth_callback"))
+        return f"{public_base_url.rstrip('/')}{route_path}"
+    return str(request.url_for(route_name))
+
+
+def _callback_url(request: Request) -> str:
+    return _public_url(request, "auth_callback")
 
 
 def _enforce_rate_limit(
@@ -264,7 +269,7 @@ def create_app(
         try:
             _require_roles(request, APPLICATION_ROLES)
         except HTTPException:
-            return RedirectResponse(request.url_for("login"), status_code=303)
+            return RedirectResponse(_public_url(request, "login"), status_code=303)
         return FileResponse(static_directory / "index.html")
 
     @application.get("/login", include_in_schema=False)
@@ -307,14 +312,14 @@ def create_app(
         request.session.clear()
         request.session["user"] = user.to_session()
         request.session["csrf_token"] = secrets.token_urlsafe(32)
-        return RedirectResponse(request.url_for("operator_console"), status_code=303)
+        return RedirectResponse(_public_url(request, "operator_console"), status_code=303)
 
     @application.post("/logout", include_in_schema=False)
     async def logout(request: Request) -> dict[str, str]:
         _current_user(request)
         _require_csrf(request)
         logout_url = request.app.state.authenticator.logout_url(
-            str(request.url_for("operator_console"))
+            _public_url(request, "operator_console")
         )
         request.session.clear()
         return {"logout_url": logout_url}

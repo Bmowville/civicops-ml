@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.3.0 — Unreleased
+## 0.3.1 — 2026-08-14
+
+- Build every production authentication URL from the configured public HTTPS origin.
+- Pin the production infrastructure to current Azure Verified Modules.
+
+## 0.3.0 — 2026-08-14
 
 - Add single-tenant Microsoft Entra sign-in with Operator and Administrator application roles.
 - Require authenticated sessions and CSRF validation for prediction, review, and logout mutations.
