@@ -1,10 +1,16 @@
 # CivicOps ML
 
+[![Container release](https://github.com/Bmowville/civicops-ml/actions/workflows/container.yml/badge.svg?branch=main)](https://github.com/Bmowville/civicops-ml/actions/workflows/container.yml)
+[![GitHub release](https://img.shields.io/github/v/release/Bmowville/civicops-ml)](https://github.com/Bmowville/civicops-ml/releases)
+[![License](https://img.shields.io/github/license/Bmowville/civicops-ml)](LICENSE)
+
 CivicOps ML is a reproducible machine-learning system that estimates whether an NYC 311 service request will remain unresolved beyond seven calendar days. Predictions are made from information available when the request is created, with explicit controls for target leakage, temporal drift, calibration, and subgroup performance.
+
+**Production:** [Open CivicOps ML](https://ca-civicops-ml-prod.wonderfultree-ff9c3d86.eastus2.azurecontainerapps.io) · Microsoft Entra sign-in and an assigned CivicOps application role are required.
 
 ## Project status
 
-The data contract, source audit, chronological evaluation, explainability analysis, drift checks, and calibration experiment are complete. The model runs behind a versioned FastAPI service and an authenticated operations console that requires a recorded human disposition for every score. Microsoft Entra provides single-tenant identity and application roles; Neon PostgreSQL provides durable audit storage with versioned migrations. The source audit covers 9,106,406 requests created from January 2024 through June 2026. Modeling uses a reproducible 641,232-row, time-stratified extract with separate training, validation, and 2026 test periods.
+Version 0.3.1 is running on Azure Container Apps from an immutable public GHCR image. The data contract, source audit, chronological evaluation, explainability analysis, drift checks, and calibration experiment are complete. The model runs behind a versioned FastAPI service and an authenticated operations console that requires a recorded human disposition for every score. Microsoft Entra provides single-tenant identity and application roles; Neon PostgreSQL provides durable audit storage with versioned migrations. The source audit covers 9,106,406 requests created from January 2024 through June 2026. Modeling uses a reproducible 641,232-row, time-stratified extract with separate training, validation, and 2026 test periods.
 
 The provisional candidate is a regularized logistic model without ZIP code, borough, or community-board inputs. On the held-out sample it reached 0.749 average precision. Its highest-risk 10% contained 39.7% of delayed requests at 77.9% precision. Validation did not support adding global or agency-aware probability scaling, so the raw score was retained. These are retrospective sample results, not production-performance claims.
 
@@ -41,7 +47,7 @@ The service fails closed when the model digest differs from the diagnostic repor
 
 Every prediction and review records the Entra subject, display name, application role, model digest, and UTC event time. Operators can score and review. Administrators additionally have access to aggregate audit counts. Mutating requests require a session-bound CSRF token.
 
-Production is packaged as a non-root container with only the verified candidate and calibrator artifacts. The deployment template provisions a dedicated managed identity, Key Vault, Log Analytics workspace, workspace-based Application Insights resource, and Container App while reusing an existing Container Apps environment. Runtime database credentials are limited to audit reads and inserts; schema migrations run as an explicit release operation rather than during API startup.
+Production is packaged as a non-root container with only the verified candidate and calibrator artifacts. Pinned Azure Verified Modules provision a dedicated managed identity, Key Vault, Log Analytics workspace, workspace-based Application Insights resource, and Container App while reusing an existing Container Apps environment. Runtime database credentials are limited to audit reads and inserts; schema migrations run as an explicit release operation rather than during API startup.
 
 The container build is reproducible from pinned Python, build-tool, application dependency, and GitHub Action versions:
 
