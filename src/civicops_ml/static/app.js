@@ -82,10 +82,10 @@ function renderPrediction(result) {
 predictionForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   formError.hidden = true;
-  setBusy(predictionForm, true);
   try {
     const values = Object.fromEntries(new FormData(predictionForm));
     values.created_at = localDateTimeToIso(values.created_at);
+    setBusy(predictionForm, true);
     const response = await fetch("/api/v1/predictions", {
       method: "POST",
       headers: mutationHeaders(),
@@ -107,9 +107,9 @@ reviewForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!activePredictionId) return;
   reviewMessage.hidden = true;
-  setBusy(reviewForm, true);
   try {
     const payload = Object.fromEntries(new FormData(reviewForm));
+    setBusy(reviewForm, true);
     const response = await fetch(`/api/v1/predictions/${activePredictionId}/reviews`, {
       method: "POST",
       headers: mutationHeaders(),

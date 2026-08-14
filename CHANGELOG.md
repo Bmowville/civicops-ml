@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.3 — 2026-08-14
+
+- Capture prediction and review form values before disabling controls during submission.
+- Preserve timezone-aware creation timestamps from the browser console.
+
 ## 0.3.2 — 2026-08-14
 
 - Bind OpenTelemetry request instrumentation explicitly to the FastAPI application.
