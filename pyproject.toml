@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Bryan Mowrey" }]
 dependencies = [
+  "azure-monitor-opentelemetry>=1.8.9,<2",
   "fastapi>=0.141,<1",
   "joblib>=1.5,<2",
   "itsdangerous>=2.2,<3",
@@ -38,6 +39,7 @@ test = ["httpx2>=2.10,<3"]
 
 [project.scripts]
 civicops-ml = "civicops_ml.api:main"
+civicops-migrate = "civicops_ml.migrate:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

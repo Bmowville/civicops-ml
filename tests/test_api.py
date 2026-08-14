@@ -134,6 +134,14 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
         self.assertEqual(response.headers["x-frame-options"], "DENY")
+        self.assertEqual(self.client.get("/livez").status_code, 200)
+
+    def test_login_is_rate_limited(self) -> None:
+        self.client.app.state.login_limit = 1
+        self.assertEqual(self.client.get("/login", follow_redirects=False).status_code, 303)
+        response = self.client.get("/login", follow_redirects=False)
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("Retry-After", response.headers)
 
     def test_console_redirects_to_login_and_api_rejects_anonymous_requests(self) -> None:
         root = self.client.get("/", follow_redirects=False)
@@ -153,6 +161,15 @@ class ApiTests(unittest.TestCase):
         self.sign_in()
         response = self.client.post("/api/v1/predictions", json=self.payload)
         self.assertEqual(response.status_code, 403)
+
+    def test_authenticated_mutations_are_rate_limited(self) -> None:
+        self.client.app.state.mutation_limit = 1
+        self.assertEqual(
+            self.authenticated_post("/api/v1/predictions", self.payload).status_code,
+            201,
+        )
+        response = self.authenticated_post("/api/v1/predictions", self.payload)
+        self.assertEqual(response.status_code, 429)
 
     def test_timezone_and_unknown_fields_are_rejected(self) -> None:
         self.payload["created_at"] = "2026-04-10T14:30:00"

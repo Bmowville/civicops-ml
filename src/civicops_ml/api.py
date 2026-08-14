@@ -35,7 +35,9 @@ from .schemas import (
     ReviewResponse,
 )
 from .serving import PredictionService
+from .rate_limit import SlidingWindowRateLimiter
 from .store import Actor, AuditStoreProtocol, create_audit_store
+from .telemetry import configure_telemetry
 
 load_dotenv(".env.local", override=False)
 
@@ -75,6 +77,16 @@ def _path_from_env(name: str, default: str) -> Path:
 
 def _environment() -> str:
     return os.environ.get("CIVICOPS_ENVIRONMENT", "development").lower()
+
+
+def _positive_limit(name: str, default: int) -> int:
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be an integer") from exc
+    if value < 1:
+        raise RuntimeError(f"{name} must be positive")
+    return value
 
 
 def _session_secret(configured_secret: str | None) -> str:
@@ -128,6 +140,26 @@ def _callback_url(request: Request) -> str:
             raise RuntimeError("CIVICOPS_PUBLIC_BASE_URL must use HTTPS")
         return f"{public_base_url.rstrip('/')}/auth/callback"
     return str(request.url_for("auth_callback"))
+
+
+def _enforce_rate_limit(
+    request: Request,
+    key: str,
+    *,
+    limit: int,
+    window_seconds: int,
+) -> None:
+    allowed, retry_after = request.app.state.rate_limiter.check(
+        key,
+        limit=limit,
+        window_seconds=window_seconds,
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="request rate limit exceeded",
+            headers={"Retry-After": str(retry_after)},
+        )
 
 
 def create_app(
@@ -184,6 +216,13 @@ def create_app(
     application.state.service = service
     application.state.store = store
     application.state.authenticator = authenticator
+    application.state.rate_limiter = SlidingWindowRateLimiter()
+    application.state.login_limit = _positive_limit(
+        "CIVICOPS_LOGIN_LIMIT_PER_FIVE_MINUTES", 10
+    )
+    application.state.mutation_limit = _positive_limit(
+        "CIVICOPS_MUTATION_LIMIT_PER_MINUTE", 30
+    )
     application.add_middleware(
         SessionMiddleware,
         secret_key=_session_secret(session_secret),
@@ -230,6 +269,12 @@ def create_app(
 
     @application.get("/login", include_in_schema=False)
     async def login(request: Request) -> RedirectResponse:
+        _enforce_rate_limit(
+            request,
+            "login:global",
+            limit=request.app.state.login_limit,
+            window_seconds=5 * 60,
+        )
         request.session.clear()
         flow = request.app.state.authenticator.begin_login(_callback_url(request))
         request.session["auth_flow"] = flow
@@ -282,6 +327,10 @@ def create_app(
             storage_ready=request.app.state.store.ready(),
         )
 
+    @application.get("/livez", include_in_schema=False)
+    async def liveness() -> dict[str, str]:
+        return {"status": "ok"}
+
     @application.get("/api/v1/session")
     async def session(request: Request) -> dict[str, Any]:
         user = _require_roles(request, APPLICATION_ROLES)
@@ -310,6 +359,12 @@ def create_app(
     ) -> PredictionResponse:
         user = _require_roles(request, APPLICATION_ROLES)
         _require_csrf(request)
+        _enforce_rate_limit(
+            request,
+            f"mutation:{user.subject}",
+            limit=request.app.state.mutation_limit,
+            window_seconds=60,
+        )
         result = request.app.state.service.predict(prediction_request)
         prediction_id = request.app.state.store.record_prediction(
             prediction_request,
@@ -332,6 +387,12 @@ def create_app(
     ) -> ReviewResponse:
         user = _require_roles(request, APPLICATION_ROLES)
         _require_csrf(request)
+        _enforce_rate_limit(
+            request,
+            f"mutation:{user.subject}",
+            limit=request.app.state.mutation_limit,
+            window_seconds=60,
+        )
         try:
             return request.app.state.store.record_review(
                 str(prediction_id),
@@ -356,6 +417,7 @@ def create_app(
     return application
 
 
+configure_telemetry()
 app = create_app()
 
 

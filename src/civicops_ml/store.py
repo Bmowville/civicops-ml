@@ -235,7 +235,13 @@ class AuditStore:
 class PostgresAuditStore:
     """Neon-compatible PostgreSQL store isolated in the civicops schema."""
 
-    def __init__(self, database_url: str, *, max_connections: int = 5) -> None:
+    def __init__(
+        self,
+        database_url: str,
+        *,
+        max_connections: int = 5,
+        apply_migrations: bool = True,
+    ) -> None:
         if not database_url.startswith(("postgres://", "postgresql://")):
             raise ValueError("DATABASE_URL must use a PostgreSQL scheme")
         self.pool = NullConnectionPool(
@@ -246,9 +252,11 @@ class PostgresAuditStore:
             check=NullConnectionPool.check_connection,
         )
         self.pool.open(wait=True, timeout=15)
-        self._apply_migrations()
+        if apply_migrations:
+            self.apply_migrations()
 
-    def _apply_migrations(self) -> None:
+    def apply_migrations(self) -> None:
+        """Apply checksum-tracked schema changes using an owner connection."""
         migration_root = files("civicops_ml").joinpath("migrations")
         migration_paths = sorted(
             entry for entry in migration_root.iterdir() if entry.name.endswith(".sql")
@@ -391,7 +399,18 @@ def create_audit_store() -> AuditStoreProtocol:
     database_url = os.environ.get("DATABASE_URL")
     environment = os.environ.get("CIVICOPS_ENVIRONMENT", "development").lower()
     if database_url:
-        return PostgresAuditStore(database_url)
+        migrate_value = os.environ.get(
+            "CIVICOPS_AUTO_MIGRATE",
+            "true" if environment in {"development", "test"} else "false",
+        ).lower()
+        if migrate_value not in {"true", "false"}:
+            raise RuntimeError("CIVICOPS_AUTO_MIGRATE must be true or false")
+        if environment not in {"development", "test"} and migrate_value == "true":
+            raise RuntimeError("automatic database migrations are disabled in production")
+        return PostgresAuditStore(
+            database_url,
+            apply_migrations=migrate_value == "true",
+        )
     if environment not in {"development", "test"}:
         raise RuntimeError("DATABASE_URL is required outside development")
     return AuditStore(Path(os.environ.get("CIVICOPS_DB_PATH", "var/civicops.sqlite3")))

@@ -14,7 +14,10 @@ from civicops_ml.store import Actor, PostgresAuditStore
 )
 class PostgresAuditStoreIntegrationTests(unittest.TestCase):
     def test_migrations_and_audit_round_trip(self) -> None:
-        store = PostgresAuditStore(os.environ["CIVICOPS_TEST_DATABASE_URL"])
+        store = PostgresAuditStore(
+            os.environ["CIVICOPS_TEST_DATABASE_URL"],
+            apply_migrations=True,
+        )
         prediction_id: str | None = None
         actor = Actor(
             subject="integration-test-actor",

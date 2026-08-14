@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import os
 import sqlite3
 import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 from civicops_ml.schemas import PredictionRequest, ReviewRequest
-from civicops_ml.store import Actor, AuditStore
+from civicops_ml.store import Actor, AuditStore, create_audit_store
 
 
 class AuditStoreTests(unittest.TestCase):
@@ -100,6 +102,39 @@ class AuditStoreTests(unittest.TestCase):
         self.assertEqual(
             self.store.audit_summary(),
             {"prediction_count": 1, "review_count": 1},
+        )
+
+
+class AuditStoreSelectionTests(unittest.TestCase):
+    def test_production_rejects_automatic_migrations(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "DATABASE_URL": "postgresql://runtime:password@example.test/civicops",
+                "CIVICOPS_ENVIRONMENT": "production",
+                "CIVICOPS_AUTO_MIGRATE": "true",
+            },
+            clear=True,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "disabled in production"):
+                create_audit_store()
+
+    def test_production_opens_runtime_store_without_migrations(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "DATABASE_URL": "postgresql://runtime:password@example.test/civicops",
+                "CIVICOPS_ENVIRONMENT": "production",
+                "CIVICOPS_AUTO_MIGRATE": "false",
+            },
+            clear=True,
+        ):
+            with patch("civicops_ml.store.PostgresAuditStore") as postgres_store:
+                selected = create_audit_store()
+        self.assertIs(selected, postgres_store.return_value)
+        postgres_store.assert_called_once_with(
+            "postgresql://runtime:password@example.test/civicops",
+            apply_migrations=False,
         )
 
 

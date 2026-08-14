@@ -43,10 +43,13 @@ The server validates token tenant, audience, issuer, expiration, and role claims
 
 Authorization callback query strings are removed from the ASGI scope before the HTTP server writes its access record, preventing one-time codes and state values from entering application logs.
 
+The single-replica service applies a bounded global login rate and a per-session mutation rate. Throttling keys are held only in memory and request bodies, tokens, rationales, and exact user identifiers are not emitted as application telemetry.
+
 ## Endpoints
 
 | Method | Path | Access | Purpose |
 | --- | --- | --- | --- |
+| `GET` | `/livez` | Public | Verify that the application process is responsive |
 | `GET` | `/healthz` | Public | Verify model and audit-store readiness |
 | `GET` | `/api/v1/session` | Operator or Administrator | Return the active display identity, roles, and CSRF token |
 | `GET` | `/api/v1/model` | Operator or Administrator | Return model digest, features, calibration, threshold, and decision boundary |
@@ -63,7 +66,7 @@ At startup, the service computes the candidate model's SHA-256 digest and compar
 
 ## Audit storage
 
-Neon PostgreSQL is the durable runtime store. The application uses pooled TLS connections suitable for a serverless database and isolates its tables in the `civicops` schema. SQL migrations are packaged with the application, applied transactionally, and recorded with SHA-256 checksums. Startup fails if an already-applied migration has been modified.
+Neon PostgreSQL is the durable runtime store. The application uses pooled TLS connections suitable for a serverless database and isolates its tables in the `civicops` schema. SQL migrations are packaged with the application, applied transactionally, and recorded with SHA-256 checksums. Development can migrate on startup. Production rejects automatic migration and uses the `civicops-migrate` release command with an owner connection before the API starts. The API role has schema usage plus read/insert access to audit tables and cannot alter the schema. Migration fails if an already-applied file has been modified.
 
 Each prediction and review records:
 
@@ -86,13 +89,19 @@ The accepted payload contains no resident identifier or exact location. SQLite r
 | `CIVICOPS_ENTRA_TENANT_ID` | Single Entra tenant identifier |
 | `CIVICOPS_ENTRA_CLIENT_ID` | CivicOps application client identifier |
 | `CIVICOPS_ENTRA_CERTIFICATE_PATH` | Private certificate key readable only by the application |
+| `CIVICOPS_ENTRA_CERTIFICATE_PRIVATE_KEY` | Key Vault-injected PEM value used instead of a certificate path in production |
 | `CIVICOPS_ENTRA_CERTIFICATE_THUMBPRINT` | Thumbprint of the public certificate registered in Entra |
 | `DATABASE_URL` | PostgreSQL TLS connection string; required outside development and test |
+| `CIVICOPS_AUTO_MIGRATE` | `false` in production; production rejects `true` |
 | `CIVICOPS_PUBLIC_BASE_URL` | Public HTTPS origin for a deployed callback |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Enables Azure Monitor OpenTelemetry when present |
+| `CIVICOPS_TRACES_PER_SECOND` | Bounded trace sampling rate; defaults to 0.5 |
+| `CIVICOPS_LOGIN_LIMIT_PER_FIVE_MINUTES` | Global login-attempt limit; defaults to 10 |
+| `CIVICOPS_MUTATION_LIMIT_PER_MINUTE` | Per-session mutation limit; defaults to 30 |
 | `CIVICOPS_MODEL_PATH` | Candidate model artifact path |
 | `CIVICOPS_CALIBRATOR_PATH` | Optional calibrator artifact path |
 | `CIVICOPS_DIAGNOSTICS_PATH` | Diagnostic report path |
 | `CIVICOPS_BASELINE_PATH` | Baseline metrics report path |
 | `CIVICOPS_DB_PATH` | SQLite path used only when no `DATABASE_URL` exists in development or test |
 
-The current cloud identity and Neon development database are configured and verified. Public Azure exposure remains gated on container deployment, the production HTTPS redirect URI, managed secret injection, and post-deployment sign-in verification.
+The Azure release uses managed-identity Key Vault references, a production-only Entra certificate, Application Insights sampling, health probes, immutable image digests, and multiple Container App revisions for rollback. Account-specific identifiers and secret deployment values are intentionally not part of the repository.

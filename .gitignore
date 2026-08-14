@@ -10,9 +10,15 @@ dist/
 build/
 *.egg-info/
 
-# Raw extracts and trained artifacts are reproducible and stay out of Git.
+# Raw extracts and exploratory artifacts stay out of Git. Only the two
+# integrity-checked artifacts required by the production service are released.
 data/
-models/
+models/*
+!models/candidate.joblib
+!models/calibrator.joblib
 
 # Local runtime state is never committed.
 var/
+
+# Deployment plans and secret-bearing parameter material are local-only.
+.azure/

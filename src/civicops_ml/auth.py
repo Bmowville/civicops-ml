@@ -106,18 +106,35 @@ class EntraAuthenticator:
         client_id = _required_environment("CIVICOPS_ENTRA_CLIENT_ID")
         client_secret = os.environ.get("CIVICOPS_ENTRA_CLIENT_SECRET")
         certificate_path = os.environ.get("CIVICOPS_ENTRA_CERTIFICATE_PATH")
+        certificate_private_key = os.environ.get(
+            "CIVICOPS_ENTRA_CERTIFICATE_PRIVATE_KEY"
+        )
         certificate_thumbprint = os.environ.get(
             "CIVICOPS_ENTRA_CERTIFICATE_THUMBPRINT"
         )
 
-        if client_secret and (certificate_path or certificate_thumbprint):
+        certificate_sources = sum(
+            source is not None
+            for source in (certificate_path, certificate_private_key)
+        )
+        if certificate_sources > 1:
+            raise RuntimeError(
+                "configure an Entra certificate path or private key value, not both"
+            )
+        if client_secret and (
+            certificate_path or certificate_private_key or certificate_thumbprint
+        ):
             raise RuntimeError(
                 "configure either an Entra client secret or certificate, not both"
             )
         if client_secret:
             credential: str | dict[str, str] = client_secret
-        elif certificate_path and certificate_thumbprint:
-            private_key = Path(certificate_path).read_text(encoding="utf-8")
+        elif (certificate_path or certificate_private_key) and certificate_thumbprint:
+            private_key = (
+                Path(certificate_path).read_text(encoding="utf-8")
+                if certificate_path
+                else certificate_private_key
+            )
             credential = {
                 "private_key": private_key,
                 "thumbprint": certificate_thumbprint,

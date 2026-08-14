@@ -1,0 +1,13 @@
+using './main.bicep'
+
+param location = 'eastus2'
+param resourceGroupName = 'rg-civicops-ml-prod'
+param managedEnvironmentId = '/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.App/managedEnvironments/<environment-name>'
+param publicBaseUrl = 'https://<container-app-hostname>'
+param containerImage = 'ghcr.io/bmowville/civicops-ml@sha256:<digest>'
+param entraTenantId = '<tenant-id>'
+param entraClientId = '<client-id>'
+param entraCertificateThumbprint = '<certificate-thumbprint>'
+param entraCertificatePrivateKey = '<secure-deployment-value>'
+param databaseUrl = '<secure-deployment-value>'
+param sessionSecret = '<secure-deployment-value>'

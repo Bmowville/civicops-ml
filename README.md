@@ -41,6 +41,16 @@ The service fails closed when the model digest differs from the diagnostic repor
 
 Every prediction and review records the Entra subject, display name, application role, model digest, and UTC event time. Operators can score and review. Administrators additionally have access to aggregate audit counts. Mutating requests require a session-bound CSRF token.
 
+Production is packaged as a non-root container with only the verified candidate and calibrator artifacts. The deployment template provisions a dedicated managed identity, Key Vault, Log Analytics workspace, workspace-based Application Insights resource, and Container App while reusing an existing Container Apps environment. Runtime database credentials are limited to audit reads and inserts; schema migrations run as an explicit release operation rather than during API startup.
+
+The container build is reproducible from pinned Python, build-tool, application dependency, and GitHub Action versions:
+
+```bash
+docker build -t civicops-ml .
+```
+
+The subscription-scope infrastructure compiles from `infra/main.bicep`. Secret values and account-specific deployment parameters remain outside the repository.
+
 ## Validation
 
 Create an isolated environment and install the locked dependencies:
@@ -55,6 +65,12 @@ Run the validation suite without downloading data:
 
 ```bash
 python -m unittest discover -s tests -v
+```
+
+Compile the Azure infrastructure before a release:
+
+```bash
+az bicep build --file infra/main.bicep
 ```
 
 The standard test suite uses isolated SQLite databases and skips the external PostgreSQL integration test. Setting `CIVICOPS_TEST_DATABASE_URL` enables the migration and audit round-trip test against a dedicated test or development database.
