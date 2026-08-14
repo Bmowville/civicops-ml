@@ -37,6 +37,10 @@ param databaseUrl string
 @secure()
 param sessionSecret string
 
+@description('Private email destination for production operational alerts.')
+@secure()
+param alertEmail string
+
 param tags object = {
   application: 'civicops-ml'
   environment: 'production'
@@ -67,8 +71,20 @@ module application './app.bicep' = {
   }
 }
 
+module monitoring './monitoring.bicep' = {
+  name: 'civicops-ml-monitoring'
+  scope: resourceGroup
+  params: {
+    location: location
+    containerAppName: application.outputs.containerAppName
+    alertEmail: alertEmail
+    tags: tags
+  }
+}
+
 output resourceGroupName string = resourceGroup.name
 output containerAppName string = application.outputs.containerAppName
 output endpoint string = application.outputs.endpoint
 output keyVaultName string = application.outputs.keyVaultName
 output applicationInsightsName string = application.outputs.applicationInsightsName
+output actionGroupName string = monitoring.outputs.actionGroupName
