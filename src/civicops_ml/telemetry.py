@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 LOGGER_NAME = "civicops_ml"
 
 
-def configure_telemetry() -> bool:
+def configure_telemetry(application: FastAPI | None = None) -> bool:
     """Enable Azure Monitor only when the platform provides a connection string."""
 
     if not os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING"):
@@ -26,10 +30,18 @@ def configure_telemetry() -> bool:
         traces_per_second=traces_per_second,
         instrumentation_options={
             "django": {"enabled": False},
+            "fastapi": {"enabled": False},
             "flask": {"enabled": False},
             "psycopg2": {"enabled": False},
         },
     )
+    if application is not None:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+        FastAPIInstrumentor.instrument_app(
+            application,
+            excluded_urls=".*/livez,.*/healthz",
+        )
     logging.getLogger(LOGGER_NAME).setLevel(logging.INFO)
     logging.getLogger(LOGGER_NAME).info(
         "CivicOps telemetry initialized",

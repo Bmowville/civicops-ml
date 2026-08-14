@@ -422,8 +422,8 @@ def create_app(
     return application
 
 
-configure_telemetry()
 app = create_app()
+configure_telemetry(app)
 
 
 def main() -> None:

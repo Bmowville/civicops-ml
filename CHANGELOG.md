@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2 — 2026-08-14
+
+- Bind OpenTelemetry request instrumentation explicitly to the FastAPI application.
+- Exclude liveness and readiness probes from request traces.
+
 ## 0.3.1 — 2026-08-14
 
 - Build every production authentication URL from the configured public HTTPS origin.
