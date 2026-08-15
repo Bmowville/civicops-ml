@@ -5,13 +5,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from datetime import datetime, timezone
+import os
+from collections import Counter
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 import joblib
 import numpy as np
 import pandas as pd
+
+if TYPE_CHECKING:
+    from .store import AuditStoreProtocol
 
 
 MONITORED_FEATURES = (
@@ -29,6 +34,13 @@ DEFAULT_THRESHOLDS = {
     "unseen_category_rate": {"warning": 0.01, "critical": 0.05},
     "review_completion_rate": {"warning_below": 0.95, "critical_below": 0.9},
     "model_hash_mismatch_count": {"critical_above": 0},
+}
+
+STATUS_RANK = {
+    "ok": 0,
+    "warning": 1,
+    "insufficient_data": 2,
+    "critical": 3,
 }
 
 
@@ -68,6 +80,266 @@ def _score_reference(probabilities: np.ndarray, bins: int = 10) -> dict[str, Any
         "internal_bin_edges": [round(float(value), 10) for value in internal_edges],
         "bin_shares": [round(float(value), 10) for value in shares],
     }
+
+
+def _normalized(values: np.ndarray, *, epsilon: float = 1e-12) -> np.ndarray:
+    clipped = np.clip(np.asarray(values, dtype=float), epsilon, None)
+    return clipped / clipped.sum()
+
+
+def _jensen_shannon(
+    reference: Mapping[str, float],
+    observed_values: Sequence[str],
+) -> float:
+    observed_counts_by_category = Counter(observed_values)
+    categories = sorted({*reference, *observed_counts_by_category})
+    reference_shares = np.asarray(
+        [float(reference.get(category, 0.0)) for category in categories]
+    )
+    observed_counts = np.asarray(
+        [observed_counts_by_category[category] for category in categories],
+        dtype=float,
+    )
+    reference_distribution = _normalized(reference_shares)
+    observed_distribution = _normalized(observed_counts)
+    midpoint = (reference_distribution + observed_distribution) / 2
+    divergence = 0.5 * np.sum(
+        reference_distribution * np.log(reference_distribution / midpoint)
+    ) + 0.5 * np.sum(
+        observed_distribution * np.log(observed_distribution / midpoint)
+    )
+    return float(divergence)
+
+
+def _population_stability_index(
+    reference_shares: Sequence[float],
+    internal_edges: Sequence[float],
+    observed_scores: Sequence[float],
+) -> float:
+    scores = np.asarray(observed_scores, dtype=float)
+    if not np.isfinite(scores).all() or ((scores < 0) | (scores > 1)).any():
+        raise ValueError("production scores must be finite probabilities")
+    edges = np.asarray([-np.inf, *internal_edges, np.inf], dtype=float)
+    observed_counts = np.histogram(scores, bins=edges)[0]
+    reference_distribution = _normalized(np.asarray(reference_shares, dtype=float))
+    observed_distribution = _normalized(observed_counts.astype(float))
+    if len(reference_distribution) != len(observed_distribution):
+        raise ValueError("monitoring score bins do not match the reference contract")
+    return float(
+        np.sum(
+            (observed_distribution - reference_distribution)
+            * np.log(observed_distribution / reference_distribution)
+        )
+    )
+
+
+def _status_above(value: float, thresholds: Mapping[str, float]) -> str:
+    if value >= float(thresholds["critical"]):
+        return "critical"
+    if value >= float(thresholds["warning"]):
+        return "warning"
+    return "ok"
+
+
+def _status_below(value: float, thresholds: Mapping[str, float]) -> str:
+    if value < float(thresholds["critical_below"]):
+        return "critical"
+    if value < float(thresholds["warning_below"]):
+        return "warning"
+    return "ok"
+
+
+def _worst_status(statuses: Sequence[str]) -> str:
+    return max(statuses, key=lambda status: STATUS_RANK[status])
+
+
+def build_monitoring_report(
+    baseline: Mapping[str, Any],
+    records: Sequence[Mapping[str, Any]],
+    *,
+    generated_at: datetime | None = None,
+    window_start: datetime | None = None,
+) -> dict[str, Any]:
+    """Compare aggregate production activity with the committed reference."""
+
+    if baseline.get("schema_version") != 1:
+        raise ValueError("unsupported monitoring baseline schema")
+    expected_model_sha256 = str(baseline.get("model_sha256", ""))
+    if len(expected_model_sha256) != 64:
+        raise ValueError("monitoring baseline has an invalid model digest")
+
+    features = baseline.get("features")
+    scores = baseline.get("scores")
+    thresholds = baseline.get("thresholds")
+    if not isinstance(features, Mapping) or not isinstance(scores, Mapping):
+        raise ValueError("monitoring baseline is missing reference distributions")
+    if not isinstance(thresholds, Mapping):
+        raise ValueError("monitoring baseline is missing thresholds")
+
+    requests: list[Mapping[str, Any]] = []
+    probabilities: list[float] = []
+    model_hashes: list[str] = []
+    reviewed: list[bool] = []
+    for record in records:
+        request = record.get("request")
+        if not isinstance(request, Mapping):
+            raise ValueError("monitoring record request must be an object")
+        requests.append(request)
+        probabilities.append(float(record["probability"]))
+        model_hashes.append(str(record["model_sha256"]))
+        reviewed.append(bool(record["reviewed"]))
+
+    prediction_count = len(records)
+    review_count = sum(reviewed)
+    review_completion_rate = (
+        review_count / prediction_count if prediction_count else None
+    )
+    mismatch_count = sum(
+        digest != expected_model_sha256 for digest in model_hashes
+    )
+    minimum_predictions = int(thresholds["minimum_predictions"])
+    enough_data = prediction_count >= minimum_predictions
+    integrity_status = "critical" if mismatch_count else "ok"
+
+    report: dict[str, Any] = {
+        "schema_version": 1,
+        "generated_at": (generated_at or datetime.now(timezone.utc)).isoformat(
+            timespec="seconds"
+        ),
+        "window": {
+            "start": (
+                window_start.astimezone(timezone.utc).isoformat(timespec="seconds")
+                if window_start is not None
+                else None
+            ),
+            "prediction_count": prediction_count,
+            "review_count": review_count,
+        },
+        "model_sha256": expected_model_sha256,
+        "overall_status": "ok",
+        "checks": {
+            "sample_size": {
+                "minimum_predictions": minimum_predictions,
+                "observed_predictions": prediction_count,
+                "status": "ok" if enough_data else "insufficient_data",
+            },
+            "model_integrity": {
+                "mismatch_count": mismatch_count,
+                "status": integrity_status,
+            },
+            "review_completion": {
+                "rate": (
+                    round(float(review_completion_rate), 10)
+                    if review_completion_rate is not None
+                    else None
+                ),
+                "status": "insufficient_data",
+            },
+            "score_drift": {
+                "psi": None,
+                "status": "insufficient_data",
+            },
+            "feature_drift": {
+                feature: {
+                    "jensen_shannon": None,
+                    "unseen_category_rate": None,
+                    "status": "insufficient_data",
+                }
+                for feature in MONITORED_FEATURES
+            },
+        },
+        "privacy": {
+            "output": "aggregate metrics only",
+            "excluded": [
+                "prediction_identifier",
+                "actor_identity",
+                "review_rationale",
+                "service_request_identifier",
+                "address",
+            ],
+        },
+    }
+
+    if not enough_data:
+        report["overall_status"] = (
+            "critical" if integrity_status == "critical" else "insufficient_data"
+        )
+        return report
+
+    review_status = _status_below(
+        float(review_completion_rate),
+        thresholds["review_completion_rate"],
+    )
+    score_psi = _population_stability_index(
+        scores["bin_shares"],
+        scores["internal_bin_edges"],
+        probabilities,
+    )
+    score_status = _status_above(score_psi, thresholds["score_psi"])
+    report["checks"]["review_completion"]["status"] = review_status
+    report["checks"]["score_drift"] = {
+        "psi": round(score_psi, 10),
+        "status": score_status,
+    }
+
+    feature_statuses: list[str] = []
+    for feature in MONITORED_FEATURES:
+        feature_reference = features.get(feature)
+        if not isinstance(feature_reference, Mapping) or not isinstance(
+            feature_reference.get("shares"), Mapping
+        ):
+            raise ValueError(f"monitoring baseline is missing feature {feature}")
+        values = [str(request.get(feature) or "Unknown") for request in requests]
+        reference_shares = feature_reference["shares"]
+        divergence = _jensen_shannon(reference_shares, values)
+        unseen_count = sum(value not in reference_shares for value in values)
+        unseen_rate = unseen_count / prediction_count
+        divergence_status = _status_above(
+            divergence,
+            thresholds["feature_jensen_shannon"],
+        )
+        unseen_status = _status_above(
+            unseen_rate,
+            thresholds["unseen_category_rate"],
+        )
+        feature_status = _worst_status([divergence_status, unseen_status])
+        feature_statuses.append(feature_status)
+        report["checks"]["feature_drift"][feature] = {
+            "jensen_shannon": round(divergence, 10),
+            "unseen_category_rate": round(unseen_rate, 10),
+            "status": feature_status,
+        }
+
+    report["overall_status"] = _worst_status(
+        [integrity_status, review_status, score_status, *feature_statuses]
+    )
+    return report
+
+
+def build_store_monitoring_report(
+    store: AuditStoreProtocol,
+    baseline_path: Path,
+    *,
+    window_days: int = 30,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Build a production report without selecting identities or rationales."""
+
+    if window_days < 1:
+        raise ValueError("monitoring window must be at least one day")
+    current_time = now or datetime.now(timezone.utc)
+    if current_time.tzinfo is None or current_time.utcoffset() is None:
+        raise ValueError("monitoring time must include a UTC offset")
+    current_time = current_time.astimezone(timezone.utc)
+    window_start = current_time - timedelta(days=window_days)
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    records = store.monitoring_snapshot(since=window_start)
+    return build_monitoring_report(
+        baseline,
+        records,
+        generated_at=current_time,
+        window_start=window_start,
+    )
 
 
 def build_monitoring_baseline(
@@ -161,6 +433,52 @@ def main() -> None:
             indent=2,
         )
     )
+
+
+def production_main() -> None:
+    """Generate a privacy-safe aggregate report from the configured audit store."""
+
+    from dotenv import load_dotenv
+
+    from .store import create_audit_store
+
+    load_dotenv(".env.local", override=False)
+    parser = argparse.ArgumentParser(description=production_main.__doc__)
+    parser.add_argument(
+        "--baseline",
+        type=Path,
+        default=Path(
+            os.environ.get(
+                "CIVICOPS_MONITORING_BASELINE_PATH",
+                "reports/monitoring_baseline.json",
+            )
+        ),
+    )
+    parser.add_argument(
+        "--window-days",
+        type=int,
+        default=int(os.environ.get("CIVICOPS_MONITORING_WINDOW_DAYS", "30")),
+    )
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--fail-on-critical", action="store_true")
+    args = parser.parse_args()
+
+    store = create_audit_store()
+    try:
+        report = build_store_monitoring_report(
+            store,
+            args.baseline,
+            window_days=args.window_days,
+        )
+    finally:
+        store.close()
+    serialized = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if args.output is not None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(serialized, encoding="utf-8")
+    print(serialized, end="")
+    if args.fail_on_critical and report["overall_status"] == "critical":
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

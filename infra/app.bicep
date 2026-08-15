@@ -169,8 +169,10 @@ module containerApp 'br/public:avm/res/app/container-app:0.23.0' = {
           { name: 'CIVICOPS_SESSION_SECRET', secretRef: 'session-secret' }
           { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', secretRef: 'application-insights' }
           { name: 'OTEL_SERVICE_NAME', value: 'civicops-ml' }
-          { name: 'OTEL_RESOURCE_ATTRIBUTES', value: 'deployment.environment=production,service.version=0.3.4' }
+          { name: 'OTEL_RESOURCE_ATTRIBUTES', value: 'deployment.environment=production,service.version=0.3.5' }
           { name: 'CIVICOPS_TRACES_PER_SECOND', value: '0.5' }
+          { name: 'CIVICOPS_MONITORING_WINDOW_DAYS', value: '30' }
+          { name: 'CIVICOPS_MONITORING_INTERVAL_SECONDS', value: '21600' }
         ]
         resources: {
           cpu: json('0.25')

@@ -56,6 +56,7 @@ The single-replica service applies a bounded global login rate and a per-session
 | `POST` | `/api/v1/predictions` | Operator or Administrator | Validate creation-time fields, create a score, and write its audit record |
 | `POST` | `/api/v1/predictions/{id}/reviews` | Operator or Administrator | Record exactly one human disposition and rationale |
 | `GET` | `/api/v1/admin/audit-summary` | Administrator | Return aggregate prediction and review counts |
+| `GET` | `/api/v1/admin/monitoring` | Administrator | Return aggregate drift, integrity, and review-completion status |
 | `GET` | `/docs` | Operator or Administrator | Return the generated OpenAPI document |
 
 Prediction responses explicitly set `human_review_required` to `true`. The operational threshold only assigns a review tier; it does not make or recommend a final service decision.
@@ -80,6 +81,12 @@ Each prediction and review records:
 
 The accepted payload contains no resident identifier or exact location. SQLite retains the same store contract for development and tests only; PostgreSQL is required in any other environment.
 
+## Production monitoring
+
+The application evaluates the most recent 30-day audit window at startup and every six hours while its scale-to-zero Container App remains active. It compares aggregate creation-time feature and score distributions with the model-bound reference in `reports/monitoring_baseline.json`. Drift and review-completion conclusions are suppressed below 100 predictions, but any model-digest mismatch is critical immediately.
+
+The monitoring query selects no prediction identifier, actor identity, actor role, review action, or rationale. Application Insights receives only aggregate status, counts, score PSI, maximum feature divergence, maximum unseen-category rate, review completion, and model-integrity counts. Administrators can request a fresh aggregate report from `/api/v1/admin/monitoring`; the same calculation is available through `civicops-monitor` for controlled operations.
+
 ## Configuration
 
 | Variable | Requirement |
@@ -98,6 +105,9 @@ The accepted payload contains no resident identifier or exact location. SQLite r
 | `CIVICOPS_TRACES_PER_SECOND` | Bounded trace sampling rate; defaults to 0.5 |
 | `CIVICOPS_LOGIN_LIMIT_PER_FIVE_MINUTES` | Global login-attempt limit; defaults to 10 |
 | `CIVICOPS_MUTATION_LIMIT_PER_MINUTE` | Per-session mutation limit; defaults to 30 |
+| `CIVICOPS_MONITORING_BASELINE_PATH` | Model-bound production monitoring reference |
+| `CIVICOPS_MONITORING_WINDOW_DAYS` | Bounded audit window; defaults to 30 days |
+| `CIVICOPS_MONITORING_INTERVAL_SECONDS` | Runtime evaluation interval; minimum 300 seconds and defaults to six hours |
 | `CIVICOPS_MODEL_PATH` | Candidate model artifact path |
 | `CIVICOPS_CALIBRATOR_PATH` | Optional calibrator artifact path |
 | `CIVICOPS_DIAGNOSTICS_PATH` | Diagnostic report path |

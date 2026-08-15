@@ -4,7 +4,7 @@
 
 CivicOps ML estimates whether an NYC 311 service request will remain unresolved for more than seven calendar days. The current candidate is a regularized logistic-regression pipeline using only information available when a request is created.
 
-**Status:** model candidate deployed with CivicOps ML 0.3.4 in a restricted, single-tenant human-review workflow. It is not approved for automated service decisions or public scoring.
+**Status:** model candidate operated in a restricted, single-tenant human-review workflow. It is not approved for automated service decisions or public scoring.
 
 **Intended use:** help a human operations reviewer identify requests that may warrant earlier attention. The score must not automatically deny, close, deprioritize, or reroute public services, and it is not a measure of resident importance, agency quality, or employee performance.
 
@@ -93,6 +93,8 @@ High-volume test groups still show meaningful calibration differences. The model
 The deployed workflow requires Microsoft Entra application roles, records the model hash and a human disposition for every completed review, stores the audit trail in Neon PostgreSQL, emits request telemetry to Application Insights, and runs immutable Container Apps revisions with a tested rollback path. The API accepts no service-request identifier, address, ZIP code, borough, community board, status, resolution text, or closure information.
 
 The production-monitoring reference is generated from the training split and bound to the exact model and extract SHA-256 digests. It covers agency, complaint type, descriptor, location type, submission channel, and prediction-score distributions. Monitoring is suppressed below 100 predictions. Warning and critical boundaries are 0.10/0.20 for score PSI, 0.05/0.10 for feature Jensen-Shannon divergence, and 1%/5% for unseen categories. Human-review completion warns below 95% and is critical below 90%; any model-hash mismatch is critical.
+
+The deployed service evaluates a bounded 30-day window at startup and every six hours while active. It emits aggregate monitoring status to Application Insights and exposes the same aggregate report only to the Administrator role. The monitoring query excludes actor identities, review rationales, prediction identifiers, addresses, and service-request identifiers.
 
 Live outcome metrics are intentionally separate from the application audit trail because the service does not collect a request identifier or post-creation outcome. Average precision, Brier score, delayed-outcome prevalence, and subgroup calibration therefore require a new chronological evaluation cohort from the public source rather than joining operational users or rationales back to service requests. No monitoring result can authorize an automated service action.
 

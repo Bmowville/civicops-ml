@@ -178,7 +178,7 @@ class ApiTests(unittest.TestCase):
             schema.headers["content-type"].startswith("application/json")
         )
         self.assertEqual(schema.json()["info"]["title"], "CivicOps ML")
-        self.assertEqual(schema.json()["info"]["version"], "0.3.4")
+        self.assertEqual(schema.json()["info"]["version"], "0.3.5")
         self.assertNotIn("/docs", schema.json()["paths"])
         self.assertNotIn("/openapi.json", schema.json()["paths"])
 
@@ -264,6 +264,7 @@ class ApiTests(unittest.TestCase):
         self.sign_in()
         response = self.client.get("/api/v1/admin/audit-summary")
         self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.client.get("/api/v1/admin/monitoring").status_code, 403)
 
     def test_administrator_can_read_audit_summary(self) -> None:
         self.client_context.__exit__(None, None, None)
@@ -284,6 +285,13 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(
             response.json(),
             {"prediction_count": 0, "review_count": 0},
+        )
+        monitoring = self.client.get("/api/v1/admin/monitoring")
+        self.assertEqual(monitoring.status_code, 200)
+        self.assertEqual(monitoring.json()["overall_status"], "insufficient_data")
+        self.assertEqual(
+            monitoring.json()["checks"]["sample_size"]["observed_predictions"],
+            0,
         )
 
 
