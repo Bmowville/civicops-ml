@@ -104,6 +104,38 @@ class AuditStoreTests(unittest.TestCase):
             {"prediction_count": 1, "review_count": 1},
         )
 
+    def test_monitoring_snapshot_excludes_identity_and_rationale(self) -> None:
+        prediction_id = self.store.record_prediction(
+            self.request,
+            0.72,
+            "priority_review",
+            "a" * 64,
+            self.actor,
+        )
+        self.store.record_review(
+            prediction_id,
+            ReviewRequest(action="monitor", rationale="Monitor the request."),
+            self.actor,
+        )
+
+        self.assertEqual(
+            self.store.monitoring_snapshot(),
+            [
+                {
+                    "request": {
+                        "agency": "DOT",
+                        "complaint_type": "Street Condition",
+                        "descriptor": "Pothole",
+                        "location_type": "Street",
+                        "open_data_channel_type": "ONLINE",
+                    },
+                    "probability": 0.72,
+                    "model_sha256": "a" * 64,
+                    "reviewed": True,
+                }
+            ],
+        )
+
 
 class AuditStoreSelectionTests(unittest.TestCase):
     def test_production_rejects_automatic_migrations(self) -> None:

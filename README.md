@@ -10,7 +10,7 @@ CivicOps ML is a reproducible machine-learning system that estimates whether an 
 
 ## Project status
 
-Version 0.3.4 is running on Azure Container Apps from an immutable public GHCR image. The data contract, source audit, chronological evaluation, explainability analysis, drift checks, and calibration experiment are complete. The model runs behind a versioned FastAPI service and an authenticated operations console that requires a recorded human disposition for every score. Microsoft Entra provides single-tenant identity and application roles; Neon PostgreSQL provides durable audit storage with versioned migrations. The source audit covers 9,106,406 requests created from January 2024 through June 2026. Modeling uses a reproducible 641,232-row, time-stratified extract with separate training, validation, and 2026 test periods.
+Version 0.3.5 adds privacy-safe runtime monitoring to the Azure Container Apps release. The data contract, source audit, chronological evaluation, explainability analysis, drift checks, and calibration experiment are complete. The model runs behind a versioned FastAPI service and an authenticated operations console that requires a recorded human disposition for every score. Microsoft Entra provides single-tenant identity and application roles; Neon PostgreSQL provides durable audit storage with versioned migrations. The monitor evaluates a bounded production window when the application starts and every six hours while it remains active; conclusions are suppressed below 100 predictions. The source audit covers 9,106,406 requests created from January 2024 through June 2026. Modeling uses a reproducible 641,232-row, time-stratified extract with separate training, validation, and 2026 test periods.
 
 The provisional candidate is a regularized logistic model without ZIP code, borough, or community-board inputs. On the held-out sample it reached 0.749 average precision. Its highest-risk 10% contained 39.7% of delayed requests at 77.9% precision. Validation did not support adding global or agency-aware probability scaling, so the raw score was retained. These are retrospective sample results, not production-performance claims.
 
@@ -45,7 +45,7 @@ Open `http://localhost:8000` for the review console. Entra sign-in and an assign
 
 The service fails closed when the model digest differs from the diagnostic report, PostgreSQL is unavailable outside development or test, identity configuration is incomplete, or an Entra token fails tenant, audience, issuer, expiration, or role validation. It rejects post-outcome fields, fine-grained location inputs, timestamps without a UTC offset, timestamps outside the supported cohort, and unexpected request properties.
 
-Every prediction and review records the Entra subject, display name, application role, model digest, and UTC event time. Operators can score and review. Administrators additionally have access to aggregate audit counts. Mutating requests require a session-bound CSRF token.
+Every prediction and review records the Entra subject, display name, application role, model digest, and UTC event time. Operators can score and review. Administrators additionally have access to aggregate audit counts and production-monitoring status. Monitoring selects only creation-time categories, scores, model digests, and review-completion flags; it never selects actor identities or review rationales. Mutating requests require a session-bound CSRF token.
 
 Production is packaged as a non-root container with only the verified candidate and calibrator artifacts. Pinned Azure Verified Modules provision a dedicated managed identity, Key Vault, Log Analytics workspace, workspace-based Application Insights resource, and Container App while reusing an existing Container Apps environment. Runtime database credentials are limited to audit reads and inserts; schema migrations run as an explicit release operation rather than during API startup.
 
@@ -81,7 +81,13 @@ az bicep build --file infra/main.bicep
 
 The standard test suite uses isolated SQLite databases and skips the external PostgreSQL integration test. Setting `CIVICOPS_TEST_DATABASE_URL` enables the migration and audit round-trip test against a dedicated test or development database.
 
-The audit utility queries bounded time windows and writes aggregate findings only; raw service-request records are not committed.
+Generate a privacy-safe aggregate report from the configured audit store:
+
+```bash
+civicops-monitor --window-days 30 --fail-on-critical
+```
+
+The command queries a bounded time window and writes aggregate findings only. It suppresses drift conclusions below the configured minimum sample size, while any model-hash mismatch remains critical.
 
 Rebuild the ignored modeling extract and baseline report:
 

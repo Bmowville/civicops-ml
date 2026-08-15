@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from importlib.resources import files
 from pathlib import Path
-from typing import Iterator, Protocol
+from typing import Any, Iterator, Protocol
 from uuid import uuid4
 
 import psycopg
@@ -48,6 +48,12 @@ class AuditStoreProtocol(Protocol):
     ) -> ReviewResponse: ...
 
     def audit_summary(self) -> dict[str, int]: ...
+
+    def monitoring_snapshot(
+        self,
+        *,
+        since: datetime | None = None,
+    ) -> list[dict[str, Any]]: ...
 
     def ready(self) -> bool: ...
 
@@ -228,6 +234,59 @@ class AuditStore:
             "review_count": review_count,
         }
 
+    def monitoring_snapshot(
+        self,
+        *,
+        since: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return only the non-identifying fields required for model monitoring."""
+
+        query = """
+            SELECT json_extract(p.request_json, '$.agency'),
+                   json_extract(p.request_json, '$.complaint_type'),
+                   json_extract(p.request_json, '$.descriptor'),
+                   json_extract(p.request_json, '$.location_type'),
+                   json_extract(p.request_json, '$.open_data_channel_type'),
+                   p.probability, p.model_sha256,
+                   CASE WHEN r.prediction_id IS NULL THEN 0 ELSE 1 END AS reviewed
+            FROM predictions AS p
+            LEFT JOIN reviews AS r ON r.prediction_id = p.prediction_id
+        """
+        parameters: tuple[str, ...] = ()
+        if since is not None:
+            if since.tzinfo is None or since.utcoffset() is None:
+                raise ValueError("monitoring snapshot time must include a UTC offset")
+            query += " WHERE p.recorded_at >= ?"
+            parameters = (since.astimezone(timezone.utc).isoformat(timespec="seconds"),)
+        query += " ORDER BY p.recorded_at"
+
+        with self._connection() as connection:
+            rows = connection.execute(query, parameters).fetchall()
+        return [
+            {
+                "request": {
+                    "agency": agency,
+                    "complaint_type": complaint_type,
+                    "descriptor": descriptor,
+                    "location_type": location_type,
+                    "open_data_channel_type": open_data_channel_type,
+                },
+                "probability": float(probability),
+                "model_sha256": model_sha256,
+                "reviewed": bool(reviewed),
+            }
+            for (
+                agency,
+                complaint_type,
+                descriptor,
+                location_type,
+                open_data_channel_type,
+                probability,
+                model_sha256,
+                reviewed,
+            ) in rows
+        ]
+
     def close(self) -> None:
         """SQLite connections are opened per operation and need no pool cleanup."""
 
@@ -388,6 +447,59 @@ class PostgresAuditStore:
             "prediction_count": prediction_count,
             "review_count": review_count,
         }
+
+    def monitoring_snapshot(
+        self,
+        *,
+        since: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return only the non-identifying fields required for model monitoring."""
+
+        query = """
+            SELECT p.request_json ->> 'agency',
+                   p.request_json ->> 'complaint_type',
+                   p.request_json ->> 'descriptor',
+                   p.request_json ->> 'location_type',
+                   p.request_json ->> 'open_data_channel_type',
+                   p.probability, p.model_sha256,
+                   (r.prediction_id IS NOT NULL) AS reviewed
+            FROM civicops.predictions AS p
+            LEFT JOIN civicops.reviews AS r ON r.prediction_id = p.prediction_id
+        """
+        parameters: tuple[datetime, ...] = ()
+        if since is not None:
+            if since.tzinfo is None or since.utcoffset() is None:
+                raise ValueError("monitoring snapshot time must include a UTC offset")
+            query += " WHERE p.recorded_at >= %s"
+            parameters = (since.astimezone(timezone.utc),)
+        query += " ORDER BY p.recorded_at"
+
+        with self.pool.connection() as connection:
+            rows = connection.execute(query, parameters).fetchall()
+        return [
+            {
+                "request": {
+                    "agency": agency,
+                    "complaint_type": complaint_type,
+                    "descriptor": descriptor,
+                    "location_type": location_type,
+                    "open_data_channel_type": open_data_channel_type,
+                },
+                "probability": float(probability),
+                "model_sha256": model_sha256,
+                "reviewed": bool(reviewed),
+            }
+            for (
+                agency,
+                complaint_type,
+                descriptor,
+                location_type,
+                open_data_channel_type,
+                probability,
+                model_sha256,
+                reviewed,
+            ) in rows
+        ]
 
     def close(self) -> None:
         self.pool.close()

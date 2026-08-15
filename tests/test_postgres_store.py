@@ -50,6 +50,17 @@ class PostgresAuditStoreIntegrationTests(unittest.TestCase):
                 actor,
             )
             self.assertEqual(response.prediction_id, prediction_id)
+            snapshot = store.monitoring_snapshot()
+            matching = [
+                record
+                for record in snapshot
+                if record["request"]["agency"] == "DOT"
+                and record["model_sha256"] == "a" * 64
+            ]
+            self.assertTrue(matching)
+            self.assertTrue(matching[-1]["reviewed"])
+            self.assertNotIn("actor_id", matching[-1])
+            self.assertNotIn("rationale", matching[-1])
             with store.pool.connection() as connection:
                 stored_actor = connection.execute(
                     """

@@ -9,6 +9,7 @@ from civicops_ml.monitoring import (
     DEFAULT_THRESHOLDS,
     MONITORED_FEATURES,
     build_monitoring_baseline,
+    build_monitoring_report,
 )
 
 
@@ -72,6 +73,75 @@ class MonitoringBaselineTests(unittest.TestCase):
                 model_sha256="a" * 64,
                 extract_sha256="b" * 64,
             )
+
+    def _baseline(self) -> dict[str, object]:
+        return build_monitoring_baseline(
+            self.frame,
+            StubModel(),
+            model_sha256="a" * 64,
+            extract_sha256="b" * 64,
+        )
+
+    @staticmethod
+    def _record(
+        *,
+        probability: float = 0.5,
+        reviewed: bool = True,
+        model_sha256: str = "a" * 64,
+        category: str = "DOT",
+    ) -> dict[str, object]:
+        return {
+            "request": {
+                "agency": category,
+                "complaint_type": "Street Condition",
+                "descriptor": "Pothole",
+                "location_type": "Street",
+                "open_data_channel_type": "ONLINE",
+            },
+            "probability": probability,
+            "model_sha256": model_sha256,
+            "reviewed": reviewed,
+        }
+
+    def test_small_production_sample_suppresses_drift_conclusions(self) -> None:
+        report = build_monitoring_report(self._baseline(), [self._record()])
+
+        self.assertEqual(report["overall_status"], "insufficient_data")
+        self.assertEqual(report["checks"]["sample_size"]["observed_predictions"], 1)
+        self.assertIsNone(report["checks"]["score_drift"]["psi"])
+        self.assertEqual(report["privacy"]["output"], "aggregate metrics only")
+
+    def test_model_hash_mismatch_is_critical_even_below_sample_minimum(self) -> None:
+        report = build_monitoring_report(
+            self._baseline(),
+            [self._record(model_sha256="c" * 64)],
+        )
+
+        self.assertEqual(report["overall_status"], "critical")
+        self.assertEqual(
+            report["checks"]["model_integrity"]["mismatch_count"],
+            1,
+        )
+
+    def test_large_shift_and_incomplete_reviews_are_reported(self) -> None:
+        records = [
+            self._record(probability=0.99, reviewed=False, category="NEW_AGENCY")
+            for _ in range(DEFAULT_THRESHOLDS["minimum_predictions"])
+        ]
+        report = build_monitoring_report(self._baseline(), records)
+
+        self.assertEqual(report["overall_status"], "critical")
+        self.assertEqual(
+            report["checks"]["review_completion"]["status"],
+            "critical",
+        )
+        self.assertEqual(
+            report["checks"]["feature_drift"]["agency"][
+                "unseen_category_rate"
+            ],
+            1.0,
+        )
+        self.assertIsNotNone(report["checks"]["score_drift"]["psi"])
 
 
 if __name__ == "__main__":

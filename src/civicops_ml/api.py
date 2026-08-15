@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
+import logging
 import os
 import secrets
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any, AsyncIterator, Awaitable, Callable
 from urllib.parse import parse_qsl
@@ -42,6 +44,7 @@ from .schemas import (
 )
 from .serving import PredictionService
 from .rate_limit import SlidingWindowRateLimiter
+from .monitoring import build_store_monitoring_report
 from .store import Actor, AuditStoreProtocol, create_audit_store
 from .telemetry import configure_telemetry
 
@@ -50,6 +53,7 @@ load_dotenv(".env.local", override=False)
 AsgiMessage = dict[str, Any]
 AsgiReceive = Callable[[], Awaitable[AsgiMessage]]
 AsgiSend = Callable[[AsgiMessage], Awaitable[None]]
+LOGGER = logging.getLogger("civicops_ml")
 
 
 class RedactAuthenticationQueryMiddleware:
@@ -93,6 +97,101 @@ def _positive_limit(name: str, default: int) -> int:
     if value < 1:
         raise RuntimeError(f"{name} must be positive")
     return value
+
+
+def _monitoring_window_days() -> int:
+    return _positive_limit("CIVICOPS_MONITORING_WINDOW_DAYS", 30)
+
+
+def _monitoring_interval_seconds() -> int:
+    try:
+        value = int(os.environ.get("CIVICOPS_MONITORING_INTERVAL_SECONDS", "21600"))
+    except ValueError as exc:
+        raise RuntimeError(
+            "CIVICOPS_MONITORING_INTERVAL_SECONDS must be an integer"
+        ) from exc
+    if value < 300:
+        raise RuntimeError(
+            "CIVICOPS_MONITORING_INTERVAL_SECONDS must be at least 300"
+        )
+    return value
+
+
+def _monitoring_baseline_path() -> Path:
+    return _path_from_env(
+        "CIVICOPS_MONITORING_BASELINE_PATH",
+        "reports/monitoring_baseline.json",
+    )
+
+
+def _monitoring_dimensions(report: dict[str, Any]) -> dict[str, object]:
+    feature_checks = report["checks"]["feature_drift"].values()
+    divergence_values = [
+        check["jensen_shannon"]
+        for check in feature_checks
+        if check["jensen_shannon"] is not None
+    ]
+    unseen_values = [
+        check["unseen_category_rate"]
+        for check in report["checks"]["feature_drift"].values()
+        if check["unseen_category_rate"] is not None
+    ]
+    return {
+        "component": "production_monitoring",
+        "monitoring_status": report["overall_status"],
+        "prediction_count": report["window"]["prediction_count"],
+        "review_count": report["window"]["review_count"],
+        "model_hash_mismatch_count": report["checks"]["model_integrity"][
+            "mismatch_count"
+        ],
+        "review_completion_rate": report["checks"]["review_completion"]["rate"],
+        "score_psi": report["checks"]["score_drift"]["psi"],
+        "maximum_feature_jensen_shannon": (
+            max(divergence_values) if divergence_values else None
+        ),
+        "maximum_unseen_category_rate": max(unseen_values) if unseen_values else None,
+    }
+
+
+def _build_application_monitoring_report(application: FastAPI) -> dict[str, Any]:
+    return build_store_monitoring_report(
+        application.state.store,
+        _monitoring_baseline_path(),
+        window_days=_monitoring_window_days(),
+    )
+
+
+async def _production_monitoring_loop(application: FastAPI) -> None:
+    interval_seconds = _monitoring_interval_seconds()
+    while True:
+        try:
+            report = await asyncio.to_thread(
+                _build_application_monitoring_report,
+                application,
+            )
+            application.state.latest_monitoring_report = report
+            log = (
+                LOGGER.error
+                if report["overall_status"] == "critical"
+                else LOGGER.warning
+                if report["overall_status"] == "warning"
+                else LOGGER.info
+            )
+            log(
+                "CivicOps production monitoring evaluation completed",
+                extra={"custom_dimensions": _monitoring_dimensions(report)},
+            )
+        except Exception:
+            LOGGER.exception(
+                "CivicOps production monitoring evaluation failed",
+                extra={
+                    "custom_dimensions": {
+                        "component": "production_monitoring",
+                        "monitoring_status": "evaluation_error",
+                    }
+                },
+            )
+        await asyncio.sleep(interval_seconds)
 
 
 def _session_secret(configured_secret: str | None) -> str:
@@ -184,6 +283,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        monitoring_task: asyncio.Task[None] | None = None
         if application.state.service is None:
             application.state.service = PredictionService(
                 model_path=_path_from_env(
@@ -207,9 +307,17 @@ def create_app(
             application.state.store = create_audit_store()
         if application.state.authenticator is None:
             application.state.authenticator = EntraAuthenticator.from_environment()
+        if _environment() not in {"development", "test"}:
+            monitoring_task = asyncio.create_task(
+                _production_monitoring_loop(application)
+            )
         try:
             yield
         finally:
+            if monitoring_task is not None:
+                monitoring_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await monitoring_task
             application.state.store.close()
 
     application = FastAPI(
@@ -228,6 +336,7 @@ def create_app(
     application.state.store = store
     application.state.authenticator = authenticator
     application.state.rate_limiter = SlidingWindowRateLimiter()
+    application.state.latest_monitoring_report = None
     application.state.login_limit = _positive_limit(
         "CIVICOPS_LOGIN_LIMIT_PER_FIVE_MINUTES", 10
     )
@@ -428,6 +537,16 @@ def create_app(
     async def audit_summary(request: Request) -> dict[str, int]:
         _require_roles(request, {ADMINISTRATOR_ROLE})
         return request.app.state.store.audit_summary()
+
+    @application.get("/api/v1/admin/monitoring")
+    async def production_monitoring(request: Request) -> dict[str, Any]:
+        _require_roles(request, {ADMINISTRATOR_ROLE})
+        report = await asyncio.to_thread(
+            _build_application_monitoring_report,
+            request.app,
+        )
+        request.app.state.latest_monitoring_report = report
+        return report
 
     @application.get("/docs", include_in_schema=False)
     async def api_document(request: Request) -> HTMLResponse:

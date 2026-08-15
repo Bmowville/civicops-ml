@@ -25,7 +25,8 @@ ENV PATH="/opt/venv/bin:$PATH" \
     CIVICOPS_MODEL_PATH=/app/models/candidate.joblib \
     CIVICOPS_CALIBRATOR_PATH=/app/models/calibrator.joblib \
     CIVICOPS_DIAGNOSTICS_PATH=/app/reports/diagnostics.json \
-    CIVICOPS_BASELINE_PATH=/app/reports/baseline_metrics.json
+    CIVICOPS_BASELINE_PATH=/app/reports/baseline_metrics.json \
+    CIVICOPS_MONITORING_BASELINE_PATH=/app/reports/monitoring_baseline.json
 
 RUN groupadd --gid 10001 civicops \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin civicops
@@ -33,7 +34,7 @@ RUN groupadd --gid 10001 civicops \
 COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
 COPY --chown=10001:10001 models/candidate.joblib models/calibrator.joblib ./models/
-COPY --chown=10001:10001 reports/diagnostics.json reports/baseline_metrics.json ./reports/
+COPY --chown=10001:10001 reports/diagnostics.json reports/baseline_metrics.json reports/monitoring_baseline.json ./reports/
 
 USER 10001:10001
 EXPOSE 8000

@@ -2,8 +2,13 @@
 
 ## Unreleased
 
+## 0.3.5 — 2026-08-15
+
 - Add a privacy-safe production monitoring baseline tied to the exact model and training extract.
 - Define minimum sample sizes and drift, unseen-category, review-completion, and model-integrity thresholds.
+- Evaluate a bounded 30-day production window at startup and every six hours while the scale-to-zero application is active.
+- Expose an administrator-only aggregate monitoring report and a `civicops-monitor` command.
+- Keep actor identities, review rationales, request identifiers, and addresses out of monitoring queries and telemetry.
 - Align the model card with the restricted production human-review deployment.
 
 ## 0.3.4 — 2026-08-14
