@@ -5,7 +5,7 @@ asgiref==3.12.1
 azure-core==1.41.0
 azure-core-tracing-opentelemetry==1.0.0b13
 azure-identity==1.25.3
-azure-monitor-opentelemetry==1.8.9
+azure-monitor-opentelemetry==1.8.10
 azure-monitor-opentelemetry-exporter==1.0.0b56
 certifi==2026.7.22
 cffi==2.1.1
@@ -18,7 +18,7 @@ fastapi==0.141.1
 h11==0.16.0
 httpcore2==2.12.0
 httptools==0.8.0
-httpx2==2.12.0
+httpx2==2.13.0
 idna==3.18
 isodate==0.7.2
 itsdangerous==2.2.0
@@ -61,7 +61,7 @@ python-dotenv==1.2.3
 PyYAML==6.0.3
 requests==2.34.2
 requests-oauthlib==2.0.0
-scikit-learn==1.9.0
+scikit-learn==1.9.1
 scipy==1.18.0
 six==1.17.0
 starlette==1.6.0
@@ -71,7 +71,7 @@ typing-inspection==0.4.4
 typing_extensions==4.16.0
 tzdata==2026.3
 urllib3==2.7.0
-uvicorn==0.52.4
+uvicorn==0.53.0
 watchfiles==1.2.0
 websockets==17.0.1
 wrapt==2.3.0
