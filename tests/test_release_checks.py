@@ -128,6 +128,36 @@ class ReleaseChecksTests(unittest.TestCase):
                 release.publish(ORIGIN, "civicops")
                 self.assertEqual(api.call_count, 1)
 
+    def test_failed_vercel_status_cannot_pass_release(self):
+        env = {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": "refs/heads/main", "GITHUB_SHA": SHA}
+        replies = [
+            {"object": {"sha": SHA}},
+            {"object": {"sha": SHA}},
+            {"statuses": [{"context": "Vercel", "state": "failure"}]},
+        ]
+        with patch.dict(os.environ, env):
+            with patch.object(release, "github", side_effect=replies):
+                with patch.object(release, "check_live") as check:
+                    with self.assertRaisesRegex(RuntimeError, "deployment failed"):
+                        release.publish(ORIGIN, "civicops")
+                    check.assert_not_called()
+
+    def test_unrelated_success_does_not_confirm_deployment(self):
+        env = {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": "refs/heads/main", "GITHUB_SHA": SHA}
+        replies = [
+            {"object": {"sha": SHA}},
+            {"object": {"sha": SHA}},
+            {"statuses": [{"context": "other", "state": "success"}]},
+            {"statuses": [{"context": "Vercel", "state": "success"}]},
+        ]
+        with patch.dict(os.environ, env):
+            with patch.object(release, "github", side_effect=replies):
+                with patch.object(release.time, "sleep") as sleep:
+                    with patch.object(release, "check_live") as check:
+                        release.publish(ORIGIN, "civicops")
+                        sleep.assert_called_once_with(15)
+                        check.assert_called_once_with(ORIGIN, "civicops", SHA)
+
     def test_promotion_is_fast_forward_and_checks_live_revision(self):
         env = {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": "refs/heads/main", "GITHUB_SHA": SHA}
         replies = [
