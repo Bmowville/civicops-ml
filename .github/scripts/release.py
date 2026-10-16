@@ -9,7 +9,7 @@ import re
 import time
 from typing import Any
 from urllib.error import HTTPError
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urljoin
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
@@ -119,16 +119,14 @@ def publish(base_url: str, kind: str) -> None:
         # GitHub rejects non-fast-forward updates; never rewrite release history.
         github("git/refs/heads/production", method="PATCH", data={"sha": sha, "force": False})
     print(f"Production branch pinned to tested commit {sha}")
-    query = urlencode({"sha": sha, "environment": "Production", "per_page": 10})
     for _ in range(60):
-        deployments = github(f"deployments?{query}")
-        for deployment in deployments:
-            if deployment.get("creator", {}).get("login") != "vercel[bot]":
+        # Native Git connections reliably report a commit status; a separate
+        # GitHub Deployment object is optional in Vercel's integration.
+        result = github(f"commits/{sha}/status")
+        for deployment in result["statuses"]:
+            if deployment["context"] != "Vercel":
                 continue
-            statuses = github(f"deployments/{deployment['id']}/statuses?per_page=1")
-            if not statuses:
-                continue
-            state = statuses[0]["state"]
+            state = deployment["state"]
             if state in ("error", "failure"):
                 raise RuntimeError("Vercel production deployment failed")
             if state == "success":

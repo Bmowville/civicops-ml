@@ -134,8 +134,7 @@ class ReleaseChecksTests(unittest.TestCase):
             {"object": {"sha": SHA}},
             {"object": {"sha": "b" * 40}},
             {},
-            [{"id": 12, "creator": {"login": "vercel[bot]"}}],
-            [{"state": "success"}],
+            {"statuses": [{"context": "Vercel", "state": "success"}]},
         ]
         with patch.dict(os.environ, env):
             with patch.object(release, "github", side_effect=replies) as api:
