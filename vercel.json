@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "fastapi",
+  "git": {
+    "deploymentEnabled": {"**": false, "production": true}
+  },
   "installCommand": "uv pip install -r requirements-lock.txt && uv pip install --no-deps .",
   "functions": {
     "app.py": {
