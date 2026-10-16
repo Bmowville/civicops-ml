@@ -25,8 +25,36 @@ jobs:
       - run: python -m pip install --no-deps .
       - run: python -m unittest discover -s tests -v
 
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: civicops_test
+          POSTGRES_USER: civicops_test
+          POSTGRES_PASSWORD: civicops-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U civicops_test -d civicops_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      CIVICOPS_TEST_DATABASE_URL: postgresql://civicops_test:civicops-ci-only@127.0.0.1:5432/civicops_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install --disable-pip-version-check -r requirements-lock.txt
+      - run: python -m pip install --no-deps .
+      - run: python -m unittest discover -s tests -p 'test_postgres_store.py' -v
+
   container:
-    needs: test
+    needs: [test, postgres]
     runs-on: ubuntu-latest
     permissions:
       contents: read

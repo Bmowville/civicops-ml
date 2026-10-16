@@ -43,9 +43,9 @@ from .schemas import (
     ReviewResponse,
 )
 from .serving import PredictionService
-from .rate_limit import SlidingWindowRateLimiter
+from .rate_limit import PostgresSlidingWindowRateLimiter, SlidingWindowRateLimiter
 from .monitoring import build_store_monitoring_report
-from .store import Actor, AuditStoreProtocol, create_audit_store
+from .store import Actor, AuditStoreProtocol, PostgresAuditStore, create_audit_store
 from .telemetry import configure_telemetry
 
 load_dotenv(".env.local", override=False)
@@ -111,9 +111,7 @@ def _monitoring_interval_seconds() -> int:
             "CIVICOPS_MONITORING_INTERVAL_SECONDS must be an integer"
         ) from exc
     if value < 300:
-        raise RuntimeError(
-            "CIVICOPS_MONITORING_INTERVAL_SECONDS must be at least 300"
-        )
+        raise RuntimeError("CIVICOPS_MONITORING_INTERVAL_SECONDS must be at least 300")
     return value
 
 
@@ -240,9 +238,10 @@ def _public_url(request: Request, route_name: str) -> str:
     route_path = str(request.app.url_path_for(route_name))
     public_base_url = os.environ.get("CIVICOPS_PUBLIC_BASE_URL")
     if public_base_url:
-        if _environment() not in {"development", "test"} and not public_base_url.startswith(
-            "https://"
-        ):
+        if _environment() not in {
+            "development",
+            "test",
+        } and not public_base_url.startswith("https://"):
             raise RuntimeError("CIVICOPS_PUBLIC_BASE_URL must use HTTPS")
         return f"{public_base_url.rstrip('/')}{route_path}"
     return str(request.url_for(route_name))
@@ -252,14 +251,15 @@ def _callback_url(request: Request) -> str:
     return _public_url(request, "auth_callback")
 
 
-def _enforce_rate_limit(
+async def _enforce_rate_limit(
     request: Request,
     key: str,
     *,
     limit: int,
     window_seconds: int,
 ) -> None:
-    allowed, retry_after = request.app.state.rate_limiter.check(
+    allowed, retry_after = await asyncio.to_thread(
+        request.app.state.rate_limiter.check,
         key,
         limit=limit,
         window_seconds=window_seconds,
@@ -307,7 +307,26 @@ def create_app(
             application.state.store = create_audit_store()
         if application.state.authenticator is None:
             application.state.authenticator = EntraAuthenticator.from_environment()
-        if _environment() not in {"development", "test"}:
+        limit_backend = os.environ.get("CIVICOPS_RATE_LIMIT_BACKEND", "memory")
+        if limit_backend not in {"memory", "postgres"}:
+            raise RuntimeError("CIVICOPS_RATE_LIMIT_BACKEND must be memory or postgres")
+        if limit_backend == "postgres":
+            if not isinstance(application.state.store, PostgresAuditStore):
+                raise RuntimeError(
+                    "shared rate limits require PostgreSQL audit storage"
+                )
+            application.state.rate_limiter = PostgresSlidingWindowRateLimiter(
+                application.state.store.pool
+            )
+        monitoring_mode = os.environ.get("CIVICOPS_MONITORING_MODE", "background")
+        if monitoring_mode not in {"background", "scheduled"}:
+            raise RuntimeError(
+                "CIVICOPS_MONITORING_MODE must be background or scheduled"
+            )
+        if (
+            _environment() not in {"development", "test"}
+            and monitoring_mode == "background"
+        ):
             monitoring_task = asyncio.create_task(
                 _production_monitoring_loop(application)
             )
@@ -348,9 +367,7 @@ def create_app(
         secret_key=_session_secret(session_secret),
         session_cookie="civicops_session",
         max_age=8 * 60 * 60,
-        same_site=(
-            "lax" if _environment() in {"development", "test"} else "none"
-        ),
+        same_site=("lax" if _environment() in {"development", "test"} else "none"),
         https_only=_environment() not in {"development", "test"},
     )
     application.add_middleware(RedactAuthenticationQueryMiddleware)
@@ -398,7 +415,7 @@ def create_app(
 
     @application.get("/login", include_in_schema=False)
     async def login(request: Request) -> RedirectResponse:
-        _enforce_rate_limit(
+        await _enforce_rate_limit(
             request,
             "login:global",
             limit=request.app.state.login_limit,
@@ -422,7 +439,9 @@ def create_app(
         if request.method == "POST":
             content_type = request.headers.get("content-type", "").split(";", 1)[0]
             if content_type != "application/x-www-form-urlencoded":
-                raise HTTPException(status_code=400, detail="invalid login response format")
+                raise HTTPException(
+                    status_code=400, detail="invalid login response format"
+                )
             body = (await request.body()).decode("utf-8", errors="strict")
             auth_response = dict(parse_qsl(body, keep_blank_values=True))
         try:
@@ -436,7 +455,9 @@ def create_app(
         request.session.clear()
         request.session["user"] = user.to_session()
         request.session["csrf_token"] = secrets.token_urlsafe(32)
-        return RedirectResponse(_public_url(request, "operator_console"), status_code=303)
+        return RedirectResponse(
+            _public_url(request, "operator_console"), status_code=303
+        )
 
     @application.post("/logout", include_in_schema=False)
     async def logout(request: Request) -> dict[str, str]:
@@ -488,7 +509,7 @@ def create_app(
     ) -> PredictionResponse:
         user = _require_roles(request, APPLICATION_ROLES)
         _require_csrf(request)
-        _enforce_rate_limit(
+        await _enforce_rate_limit(
             request,
             f"mutation:{user.subject}",
             limit=request.app.state.mutation_limit,
@@ -516,7 +537,7 @@ def create_app(
     ) -> ReviewResponse:
         user = _require_roles(request, APPLICATION_ROLES)
         _require_csrf(request)
-        _enforce_rate_limit(
+        await _enforce_rate_limit(
             request,
             f"mutation:{user.subject}",
             limit=request.app.state.mutation_limit,
@@ -548,6 +569,34 @@ def create_app(
         request.app.state.latest_monitoring_report = report
         return report
 
+    @application.post("/api/v1/internal/monitoring", include_in_schema=False)
+    async def scheduled_monitoring(request: Request) -> dict[str, Any]:
+        token = os.environ.get("CIVICOPS_MONITORING_TOKEN", "")
+        if len(token) < 32:
+            raise HTTPException(
+                status_code=503, detail="scheduled monitoring is not configured"
+            )
+        supplied = request.headers.get("Authorization", "")
+        if not secrets.compare_digest(supplied, f"Bearer {token}"):
+            raise HTTPException(
+                status_code=401, detail="monitoring authentication required"
+            )
+        await _enforce_rate_limit(
+            request, "monitoring:scheduled", limit=2, window_seconds=300
+        )
+        report = await asyncio.to_thread(
+            _build_application_monitoring_report, request.app
+        )
+        request.app.state.latest_monitoring_report = report
+        limiter = request.app.state.rate_limiter
+        if isinstance(limiter, PostgresSlidingWindowRateLimiter):
+            await asyncio.to_thread(limiter.cleanup)
+        LOGGER.info(
+            "CivicOps scheduled monitoring evaluation completed",
+            extra={"custom_dimensions": _monitoring_dimensions(report)},
+        )
+        return report
+
     @application.get("/docs", include_in_schema=False)
     async def api_document(request: Request) -> HTMLResponse:
         _require_roles(request, APPLICATION_ROLES)
@@ -559,8 +608,7 @@ def create_app(
                 "swagger-ui-bundle.js"
             ),
             swagger_css_url=(
-                "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.32.13/"
-                "swagger-ui.css"
+                "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.32.13/swagger-ui.css"
             ),
             swagger_favicon_url="/static/favicon.svg",
             swagger_ui_parameters={

@@ -23,7 +23,9 @@ def provision_runtime_role(owner_url: str, role_name: str, password: str) -> Non
     """Create or rotate a non-owner API role and grant only audit access."""
 
     if len(password) < 32:
-        raise RuntimeError("CIVICOPS_RUNTIME_PASSWORD must contain at least 32 characters")
+        raise RuntimeError(
+            "CIVICOPS_RUNTIME_PASSWORD must contain at least 32 characters"
+        )
     with psycopg.connect(owner_url, autocommit=True) as connection:
         exists = connection.execute(
             "SELECT 1 FROM pg_roles WHERE rolname = %s",
@@ -31,14 +33,18 @@ def provision_runtime_role(owner_url: str, role_name: str, password: str) -> Non
         ).fetchone()
         if exists:
             connection.execute(
-                sql.SQL("ALTER ROLE {} PASSWORD {} NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE").format(
+                sql.SQL(
+                    "ALTER ROLE {} PASSWORD {} NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE"
+                ).format(
                     sql.Identifier(role_name),
                     sql.Literal(password),
                 )
             )
         else:
             connection.execute(
-                sql.SQL("CREATE ROLE {} LOGIN PASSWORD {} NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE").format(
+                sql.SQL(
+                    "CREATE ROLE {} LOGIN PASSWORD {} NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE"
+                ).format(
                     sql.Identifier(role_name),
                     sql.Literal(password),
                 )
@@ -71,6 +77,11 @@ def provision_runtime_role(owner_url: str, role_name: str, password: str) -> Non
                 "ALTER DEFAULT PRIVILEGES IN SCHEMA civicops "
                 "GRANT SELECT, INSERT ON TABLES TO {}"
             ).format(sql.Identifier(role_name))
+        )
+        connection.execute(
+            sql.SQL("GRANT UPDATE, DELETE ON civicops.rate_limits TO {}").format(
+                sql.Identifier(role_name)
+            )
         )
 
 
@@ -116,7 +127,9 @@ def verify_runtime_role(database_url: str, expected_role: str) -> None:
         except InsufficientPrivilege:
             pass
         else:
-            raise RuntimeError("runtime database role can unexpectedly modify the schema")
+            raise RuntimeError(
+                "runtime database role can unexpectedly modify the schema"
+            )
 
 
 def main() -> None:

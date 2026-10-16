@@ -1,0 +1,44 @@
+name: Production monitoring
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-monitoring
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    if: vars.CIVICOPS_MONITORING_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Evaluate aggregate model monitoring
+        env:
+          MONITORING_URL: ${{ vars.CIVICOPS_MONITORING_URL }}
+          MONITORING_TOKEN: ${{ secrets.CIVICOPS_MONITORING_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+          url = os.environ['MONITORING_URL']
+          if not url.startswith('https://'):
+              raise SystemExit('Monitoring URL must use HTTPS')
+          token = os.environ['MONITORING_TOKEN']
+          if len(token) < 32:
+              raise SystemExit('Monitoring credential is not configured')
+          request = urllib.request.Request(
+              url, data=b'', method='POST',
+              headers={'Authorization': 'Bearer ' + token},
+          )
+          with urllib.request.urlopen(request, timeout=90) as response:
+              report = json.load(response)
+          status = report['overall_status']
+          print('Monitoring status:', status)
+          if status in {'critical', 'warning'}:
+              raise SystemExit('Model monitoring needs administrator review')
+          PY

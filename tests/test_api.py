@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from civicops_ml import __version__
 from civicops_ml.api import create_app
 from civicops_ml.auth import ADMINISTRATOR_ROLE, OPERATOR_ROLE, UserContext
 from civicops_ml.store import AuditStore
@@ -143,12 +144,16 @@ class ApiTests(unittest.TestCase):
 
     def test_login_is_rate_limited(self) -> None:
         self.client.app.state.login_limit = 1
-        self.assertEqual(self.client.get("/login", follow_redirects=False).status_code, 303)
+        self.assertEqual(
+            self.client.get("/login", follow_redirects=False).status_code, 303
+        )
         response = self.client.get("/login", follow_redirects=False)
         self.assertEqual(response.status_code, 429)
         self.assertIn("Retry-After", response.headers)
 
-    def test_console_redirects_to_login_and_api_rejects_anonymous_requests(self) -> None:
+    def test_console_redirects_to_login_and_api_rejects_anonymous_requests(
+        self,
+    ) -> None:
         root = self.client.get("/", follow_redirects=False)
         self.assertEqual(root.status_code, 303)
         self.assertEqual(root.headers["location"], "http://testserver/login")
@@ -174,11 +179,9 @@ class ApiTests(unittest.TestCase):
 
         schema = self.client.get("/openapi.json")
         self.assertEqual(schema.status_code, 200)
-        self.assertTrue(
-            schema.headers["content-type"].startswith("application/json")
-        )
+        self.assertTrue(schema.headers["content-type"].startswith("application/json"))
         self.assertEqual(schema.json()["info"]["title"], "CivicOps ML")
-        self.assertEqual(schema.json()["info"]["version"], "0.3.5")
+        self.assertEqual(schema.json()["info"]["version"], __version__)
         self.assertNotIn("/docs", schema.json()["paths"])
         self.assertNotIn("/openapi.json", schema.json()["paths"])
 
@@ -245,9 +248,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
 
     def test_review_workflow_and_duplicate_protection(self) -> None:
-        prediction = self.authenticated_post(
-            "/api/v1/predictions", self.payload
-        ).json()
+        prediction = self.authenticated_post("/api/v1/predictions", self.payload).json()
         path = f"/api/v1/predictions/{prediction['prediction_id']}/reviews"
         review = {"action": "monitor", "rationale": "Monitor the request outcome."}
         self.assertEqual(self.authenticated_post(path, review).status_code, 201)
@@ -259,6 +260,53 @@ class ApiTests(unittest.TestCase):
             {"action": "monitor", "rationale": "Monitor the request outcome."},
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_scheduled_monitoring_requires_its_own_service_credential(self) -> None:
+        path = "/api/v1/internal/monitoring"
+        with patch.dict(environ, {"CIVICOPS_MONITORING_TOKEN": ""}):
+            self.assertEqual(self.client.post(path).status_code, 503)
+        token = "test-monitoring-token-that-is-at-least-32-characters"
+        with patch.dict(environ, {"CIVICOPS_MONITORING_TOKEN": token}):
+            self.assertEqual(self.client.post(path).status_code, 401)
+            self.assertEqual(
+                self.client.post(
+                    path, headers={"Authorization": "Bearer wrong"}
+                ).status_code,
+                401,
+            )
+            response = self.client.post(
+                path, headers={"Authorization": f"Bearer {token}"}
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["overall_status"], "insufficient_data")
+            self.assertEqual(
+                response.json()["privacy"]["output"], "aggregate metrics only"
+            )
+            self.assertNotIn(path, self.client.app.openapi()["paths"])
+            self.assertEqual(self.client.get("/api/v1/session").status_code, 401)
+
+    def test_scheduled_mode_does_not_start_a_background_monitor(self) -> None:
+        with patch.dict(
+            environ,
+            {
+                "CIVICOPS_ENVIRONMENT": "production",
+                "CIVICOPS_MONITORING_MODE": "scheduled",
+            },
+        ):
+            with patch("civicops_ml.api._production_monitoring_loop") as loop:
+                store = AuditStore(
+                    Path(self.temporary_directory.name) / "scheduled.sqlite3"
+                )
+                with TestClient(
+                    create_app(
+                        StubService(),
+                        store,
+                        StubAuthenticator(),
+                        session_secret="test-session-secret-that-is-at-least-32-characters",
+                    )
+                ) as client:
+                    self.assertEqual(client.get("/healthz").status_code, 200)
+                loop.assert_not_called()
 
     def test_operator_cannot_read_admin_audit_summary(self) -> None:
         self.sign_in()
