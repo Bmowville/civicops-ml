@@ -142,6 +142,10 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.headers["x-frame-options"], "DENY")
         self.assertEqual(self.client.get("/livez").status_code, 200)
 
+    def test_health_reports_hosted_source_revision(self) -> None:
+        with patch.dict(environ, {"VERCEL_GIT_COMMIT_SHA": "a" * 40}):
+            self.assertEqual(self.client.get("/healthz").json()["revision"], "a" * 40)
+
     def test_login_is_rate_limited(self) -> None:
         self.client.app.state.login_limit = 1
         self.assertEqual(

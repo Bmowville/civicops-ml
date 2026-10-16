@@ -101,6 +101,14 @@ Register the deployed HTTPS `/auth/callback` address in the existing Entra web a
 
 Configure the repository variable `CIVICOPS_MONITORING_URL` with the deployed monitoring endpoint and the repository secret `CIVICOPS_MONITORING_TOKEN` with the same service credential used by the host. The `Production monitoring` workflow supports scheduled runs and manual dispatch. This credential authorizes aggregate monitoring only; it cannot sign in, create predictions, or record reviews.
 
+## Automated releases and live checks
+
+After the unit suite, PostgreSQL integration tests, and container build pass for a push to `main`, the release job fast-forwards `production` to that exact tested commit. Vercel's native Git integration publishes only `production`; other branches do not deploy against production credentials. The release job uses GitHub's short-lived repository token, not a hosting-account token.
+
+The job waits for Vercel's successful deployment status and verifies that the live readiness response reports the same commit SHA. It also checks model and durable-store readiness, the sign-in redirect, and rejection of anonymous session and documentation access. Live checks run independently every six hours and support manual dispatch. Scheduling is best-effort. These read-only checks do not create predictions or reviews and do not replace a signed-in workflow test.
+
+Health responses include the public source `revision` supplied by `VERCEL_GIT_COMMIT_SHA`, or `null` outside Git-based hosting. Schema migrations remain a separate owner-authorized operation and must precede releases that change the database. A failed post-deployment check reports a failure; it does not automatically roll back code or data. To roll back, use Vercel's previous known-good production deployment and verify readiness before resuming releases.
+
 ## Configuration
 
 | Variable | Requirement |

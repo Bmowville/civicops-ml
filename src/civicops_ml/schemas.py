@@ -135,3 +135,4 @@ class HealthResponse(BaseModel):
     status: Literal["ok"]
     model_loaded: bool
     storage_ready: bool
+    revision: str | None = None

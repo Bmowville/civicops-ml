@@ -475,6 +475,7 @@ def create_app(
             status="ok",
             model_loaded=request.app.state.service is not None,
             storage_ready=request.app.state.store.ready(),
+            revision=os.environ.get("VERCEL_GIT_COMMIT_SHA") or None,
         )
 
     @application.get("/livez", include_in_schema=False)
