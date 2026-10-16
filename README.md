@@ -6,7 +6,7 @@
 
 CivicOps ML is a reproducible machine-learning system that estimates whether an NYC 311 service request will remain unresolved beyond seven calendar days. Predictions are made from information available when the request is created, with explicit controls for target leakage, temporal drift, calibration, and subgroup performance.
 
-**Production:** [Open CivicOps ML](https://ca-civicops-ml-prod.wonderfultree-ff9c3d86.eastus2.azurecontainerapps.io) · Microsoft Entra sign-in and an assigned CivicOps application role are required.
+**Hosted access:** Temporarily unavailable. [Local setup](#application-runtime), the [model card](MODEL_CARD.md), and [container releases](https://github.com/Bmowville/civicops-ml/releases) remain available. Running the review console requires Microsoft Entra sign-in and an assigned CivicOps application role.
 
 ## Project status
 
