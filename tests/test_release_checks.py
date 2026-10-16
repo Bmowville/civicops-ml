@@ -57,6 +57,25 @@ class ReleaseChecksTests(unittest.TestCase):
         with patch.object(release, "request", side_effect=self.dataops_response):
             release.check_live(ORIGIN, "dataops", SHA)
 
+    def test_absolute_same_origin_sign_in_redirect_is_valid(self):
+        def response(url, **kwargs):
+            if url == ORIGIN + "/":
+                return 303, b"", {"Location": ORIGIN + "/login"}
+            return self.civicops_response(url, **kwargs)
+
+        with patch.object(release, "request", side_effect=response):
+            release.check_live(ORIGIN, "civicops", SHA)
+
+    def test_external_sign_in_redirect_is_rejected(self):
+        def response(url, **kwargs):
+            if url == ORIGIN + "/":
+                return 303, b"", {"Location": "https://other.test/login"}
+            return self.civicops_response(url, **kwargs)
+
+        with patch.object(release, "request", side_effect=response):
+            with self.assertRaisesRegex(RuntimeError, "sign-in"):
+                release.check_live(ORIGIN, "civicops")
+
     def test_wrong_revision_fails(self):
         with patch.object(release, "request", side_effect=self.civicops_response):
             with self.assertRaisesRegex(RuntimeError, "tested commit"):

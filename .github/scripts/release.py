@@ -9,7 +9,7 @@ import re
 import time
 from typing import Any
 from urllib.error import HTTPError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urljoin
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
@@ -86,7 +86,7 @@ def check_live(base_url: str, kind: str, revision: str | None = None) -> None:
         status, body, headers = request(base_url + path)
         if status not in expected:
             raise RuntimeError(f"{path} returned HTTP {status}")
-        if path == "/" and not headers.get("Location", "").startswith("/login"):
+        if path == "/" and urljoin(base_url, headers.get("Location", "")) != base_url + "/login":
             raise RuntimeError("Console does not redirect to application sign-in")
         if kind == "dataops" and path == "/dashboard" and b"DataOps" not in body:
             raise RuntimeError("Dashboard HTML is missing")
