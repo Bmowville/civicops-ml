@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.3.6 — 2026-10-16
+
+- Add a fail-closed serverless entrypoint with pinned Python dependencies and durable PostgreSQL storage.
+- Enforce atomic sliding-window rate limits across application instances with hashed, expiring keys.
+- Run authenticated aggregate monitoring on a six-hour external schedule without relying on a continuously running web process.
+- Preserve Entra role checks, CSRF validation, append-only audit permissions, and explicit migrations.
+- Require real PostgreSQL integration checks before publishing containers.
+
 ## 0.3.5 — 2026-08-15
 
 - Add a privacy-safe production monitoring baseline tied to the exact model and training extract.

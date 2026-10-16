@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "fastapi",
+  "installCommand": "uv pip install -r requirements-lock.txt && uv pip install --no-deps .",
+  "functions": {
+    "app.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{tests/**,infra/**,docs/**,scripts/**,.github/**,.azure/**,.venv/**,var/**,data/**}"
+    }
+  }
+}

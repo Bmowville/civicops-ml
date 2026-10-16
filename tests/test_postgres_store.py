@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import os
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from hashlib import sha256
+from uuid import uuid4
 
+from civicops_ml.rate_limit import PostgresSlidingWindowRateLimiter
 from civicops_ml.schemas import PredictionRequest, ReviewRequest
 from civicops_ml.store import Actor, PostgresAuditStore
 
@@ -13,6 +17,63 @@ from civicops_ml.store import Actor, PostgresAuditStore
     "CIVICOPS_TEST_DATABASE_URL is required for the PostgreSQL integration test",
 )
 class PostgresAuditStoreIntegrationTests(unittest.TestCase):
+    def test_shared_limits_are_atomic_across_instances_and_expire(self) -> None:
+        store = PostgresAuditStore(os.environ["CIVICOPS_TEST_DATABASE_URL"])
+        other_store = PostgresAuditStore(
+            os.environ["CIVICOPS_TEST_DATABASE_URL"], apply_migrations=False
+        )
+        key = "integration-limit-" + uuid4().hex
+        key_hash = sha256(key.encode()).hexdigest()
+        limiters = [
+            PostgresSlidingWindowRateLimiter(store.pool),
+            PostgresSlidingWindowRateLimiter(other_store.pool),
+        ]
+        try:
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                results = list(
+                    executor.map(
+                        lambda index: limiters[index % 2].check(
+                            key, limit=3, window_seconds=60
+                        ),
+                        range(12),
+                    )
+                )
+            self.assertEqual(sum(allowed for allowed, _ in results), 3)
+            self.assertTrue(
+                all(retry >= 1 for allowed, retry in results if not allowed)
+            )
+            with store.pool.connection() as connection:
+                count = connection.execute(
+                    "SELECT cardinality(event_times) FROM civicops.rate_limits WHERE key_sha256=%s",
+                    (key_hash,),
+                ).fetchone()[0]
+                self.assertEqual(count, 3)
+                connection.execute(
+                    "UPDATE civicops.rate_limits SET event_times=ARRAY[EXTRACT(EPOCH FROM clock_timestamp())::float8 - 61] WHERE key_sha256=%s",
+                    (key_hash,),
+                )
+            self.assertTrue(limiters[1].check(key, limit=3, window_seconds=60)[0])
+            with store.pool.connection() as connection:
+                connection.execute(
+                    "UPDATE civicops.rate_limits SET expires_at=CURRENT_TIMESTAMP - INTERVAL '2 days' WHERE key_sha256=%s",
+                    (key_hash,),
+                )
+            limiters[0].cleanup()
+            with store.pool.connection() as connection:
+                self.assertIsNone(
+                    connection.execute(
+                        "SELECT 1 FROM civicops.rate_limits WHERE key_sha256=%s",
+                        (key_hash,),
+                    ).fetchone()
+                )
+        finally:
+            with store.pool.connection() as connection:
+                connection.execute(
+                    "DELETE FROM civicops.rate_limits WHERE key_sha256=%s", (key_hash,)
+                )
+            other_store.close()
+            store.close()
+
     def test_migrations_and_audit_round_trip(self) -> None:
         store = PostgresAuditStore(
             os.environ["CIVICOPS_TEST_DATABASE_URL"],
