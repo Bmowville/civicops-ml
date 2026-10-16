@@ -43,7 +43,7 @@ The server validates token tenant, audience, issuer, expiration, and role claims
 
 Authorization callback query strings are removed from the ASGI scope before the HTTP server writes its access record, preventing one-time codes and state values from entering application logs.
 
-The single-replica service applies a bounded global login rate and a per-session mutation rate. Throttling keys are held only in memory and request bodies, tokens, rationales, and exact user identifiers are not emitted as application telemetry.
+The service applies a bounded global login rate and a per-user mutation rate. The horizontally scaled host shares sliding-window state through PostgreSQL row locks so concurrent instances cannot each consume a separate allowance. Only SHA-256 hashes of throttle keys and bounded event timestamps are retained; expired inactive keys are removed by scheduled monitoring. The in-memory backend remains available for local or single-replica operation. Request bodies, tokens, rationales, and exact user identifiers are not emitted as application telemetry.
 
 ## Endpoints
 
@@ -57,7 +57,9 @@ The single-replica service applies a bounded global login rate and a per-session
 | `POST` | `/api/v1/predictions/{id}/reviews` | Operator or Administrator | Record exactly one human disposition and rationale |
 | `GET` | `/api/v1/admin/audit-summary` | Administrator | Return aggregate prediction and review counts |
 | `GET` | `/api/v1/admin/monitoring` | Administrator | Return aggregate drift, integrity, and review-completion status |
-| `GET` | `/docs` | Operator or Administrator | Return the generated OpenAPI document |
+| `GET` | `/docs` | Operator or Administrator | Render interactive, read-only Swagger documentation in a separate tab |
+| `GET` | `/openapi.json` | Operator or Administrator | Return the protected OpenAPI schema |
+| `POST` | `/api/v1/internal/monitoring` | Monitoring service credential | Evaluate aggregate monitoring and expire inactive throttle keys |
 
 Prediction responses explicitly set `human_review_required` to `true`. The operational threshold only assigns a review tier; it does not make or recommend a final service decision.
 
@@ -83,9 +85,21 @@ The accepted payload contains no resident identifier or exact location. SQLite r
 
 ## Production monitoring
 
-The application evaluates the most recent 30-day audit window at startup and every six hours while its scale-to-zero Container App remains active. It compares aggregate creation-time feature and score distributions with the model-bound reference in `reports/monitoring_baseline.json`. Drift and review-completion conclusions are suppressed below 100 predictions, but any model-digest mismatch is critical immediately.
+The hosted release evaluates the most recent 30-day audit window through an authenticated external job scheduled every six hours. GitHub Actions scheduling is best-effort and can be delayed; it is not an exact-time service guarantee. The web process does not need to stay alive between requests. A continuously running deployment can instead use background mode, which evaluates at startup and at the configured interval.
 
-The monitoring query selects no prediction identifier, actor identity, actor role, review action, or rationale. Application Insights receives only aggregate status, counts, score PSI, maximum feature divergence, maximum unseen-category rate, review completion, and model-integrity counts. Administrators can request a fresh aggregate report from `/api/v1/admin/monitoring`; the same calculation is available through `civicops-monitor` for controlled operations.
+Monitoring compares aggregate creation-time feature and score distributions with the model-bound reference in `reports/monitoring_baseline.json`. Drift and review-completion conclusions are suppressed below 100 predictions, but any model-digest mismatch is critical immediately.
+
+The monitoring query selects no prediction identifier, actor identity, actor role, review action, or rationale. The external workflow logs the overall status only and fails when warning or critical findings require review. Azure Monitor is optional and is enabled only when its connection string is configured; its telemetry contains aggregate metrics only. Administrators can request a fresh aggregate report from `/api/v1/admin/monitoring`; the same calculation is available through `civicops-monitor` for controlled operations.
+
+## Serverless deployment
+
+The current deployment uses Vercel's Python 3.12 FastAPI runtime and large-functions beta to accommodate the pinned scientific Python dependencies. `vercel.json` installs `requirements-lock.txt` and the application package, excludes development and secret-bearing local files, and bounds the function duration. Only the two serving artifacts and their diagnostic references are included.
+
+The `app.py` adapter refuses to start unless the production environment requires PostgreSQL, disables automatic migrations, enables the PostgreSQL rate-limit backend, and selects scheduled monitoring with a service credential. Apply checksum-verified migrations with an owner connection before deploying a validated commit using `vercel deploy --prod`. Provision a dedicated non-owner API role with `civicops-migrate`; the web application must never use the owner connection.
+
+Register the deployed HTTPS `/auth/callback` address in the existing Entra web application and store its certificate private key, session key, database URL, and monitoring credential in encrypted hosting settings. Use a separate certificate per deployment target and preserve existing registrations during a rollout.
+
+Configure the repository variable `CIVICOPS_MONITORING_URL` with the deployed monitoring endpoint and the repository secret `CIVICOPS_MONITORING_TOKEN` with the same service credential used by the host. The `Production monitoring` workflow supports scheduled runs and manual dispatch. This credential authorizes aggregate monitoring only; it cannot sign in, create predictions, or record reviews.
 
 ## Configuration
 
@@ -96,7 +110,7 @@ The monitoring query selects no prediction identifier, actor identity, actor rol
 | `CIVICOPS_ENTRA_TENANT_ID` | Single Entra tenant identifier |
 | `CIVICOPS_ENTRA_CLIENT_ID` | CivicOps application client identifier |
 | `CIVICOPS_ENTRA_CERTIFICATE_PATH` | Private certificate key readable only by the application |
-| `CIVICOPS_ENTRA_CERTIFICATE_PRIVATE_KEY` | Key Vault-injected PEM value used instead of a certificate path in production |
+| `CIVICOPS_ENTRA_CERTIFICATE_PRIVATE_KEY` | Encrypted hosting secret or Key Vault-injected PEM value used instead of a certificate path |
 | `CIVICOPS_ENTRA_CERTIFICATE_THUMBPRINT` | Thumbprint of the public certificate registered in Entra |
 | `DATABASE_URL` | PostgreSQL TLS connection string; required outside development and test |
 | `CIVICOPS_AUTO_MIGRATE` | `false` in production; production rejects `true` |
@@ -104,14 +118,17 @@ The monitoring query selects no prediction identifier, actor identity, actor rol
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Enables Azure Monitor OpenTelemetry when present |
 | `CIVICOPS_TRACES_PER_SECOND` | Bounded trace sampling rate; defaults to 0.5 |
 | `CIVICOPS_LOGIN_LIMIT_PER_FIVE_MINUTES` | Global login-attempt limit; defaults to 10 |
-| `CIVICOPS_MUTATION_LIMIT_PER_MINUTE` | Per-session mutation limit; defaults to 30 |
+| `CIVICOPS_MUTATION_LIMIT_PER_MINUTE` | Per-user mutation limit; defaults to 30 |
+| `CIVICOPS_RATE_LIMIT_BACKEND` | `postgres` for shared serverless throttling; `memory` for local or single-replica operation |
 | `CIVICOPS_MONITORING_BASELINE_PATH` | Model-bound production monitoring reference |
 | `CIVICOPS_MONITORING_WINDOW_DAYS` | Bounded audit window; defaults to 30 days |
 | `CIVICOPS_MONITORING_INTERVAL_SECONDS` | Runtime evaluation interval; minimum 300 seconds and defaults to six hours |
+| `CIVICOPS_MONITORING_MODE` | `scheduled` for serverless hosting; `background` for a continuously running process |
+| `CIVICOPS_MONITORING_TOKEN` | At least 32 random characters; service credential for the scheduled monitoring endpoint |
 | `CIVICOPS_MODEL_PATH` | Candidate model artifact path |
 | `CIVICOPS_CALIBRATOR_PATH` | Optional calibrator artifact path |
 | `CIVICOPS_DIAGNOSTICS_PATH` | Diagnostic report path |
 | `CIVICOPS_BASELINE_PATH` | Baseline metrics report path |
 | `CIVICOPS_DB_PATH` | SQLite path used only when no `DATABASE_URL` exists in development or test |
 
-The Azure release uses managed-identity Key Vault references, a production-only Entra certificate, Application Insights sampling, health probes, immutable image digests, and multiple Container App revisions for rollback. Account-specific identifiers and secret deployment values are intentionally not part of the repository.
+The alternative Azure infrastructure uses managed-identity Key Vault references, an Entra certificate, Application Insights sampling, health probes, immutable image digests, and multiple Container App revisions for rollback. Account-specific identifiers and secret deployment values are intentionally not part of the repository.
